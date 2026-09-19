@@ -1,0 +1,11 @@
+{
+  "tasks": [
+    {
+      "id": "hello-python",
+      "command": ["python", "-c", "print('hello')"],
+      "expected_exit_code": 0,
+      "expected_stdout": "hello\n",
+      "timeout_seconds": 5
+    }
+  ]
+}
