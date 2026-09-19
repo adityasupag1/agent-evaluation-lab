@@ -1,16 +1,76 @@
+<div align="center">
+
 # Agent Evaluation Lab
 
+**Deterministic evaluation infrastructure for command-line coding agents.**
+
+Measure what an agent actually does — exit codes, stdout/stderr, generated files, timeouts, reliability across repeated runs, and reproducible benchmark provenance.
+
+[![PyPI](https://img.shields.io/pypi/v/agent-evaluation-lab)](https://pypi.org/project/agent-evaluation-lab/)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![CI](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/ci.yml)
 [![Demo](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/demo.yml/badge.svg)](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/demo.yml)
 [![Package](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/package.yml/badge.svg)](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/package.yml)
 [![Release](https://img.shields.io/github/v/release/adityasupag1/agent-evaluation-lab)](https://github.com/adityasupag1/agent-evaluation-lab/releases/latest)
-[![PyPI](https://img.shields.io/pypi/v/agent-evaluation-lab)](https://pypi.org/project/agent-evaluation-lab/)
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-A lightweight, deterministic benchmark harness for evaluating command-line coding agents by what they actually do: exit codes, terminal output, generated files, and execution time.
+```bash
+pip install agent-evaluation-lab
+```
 
-Agent Evaluation Lab is useful when you want repeatable agent tests without tying the benchmark to a specific model, framework, or implementation detail.
+</div>
+
+## At a glance
+
+| Area | What you get |
+| --- | --- |
+| **Execution** | isolated task workspaces, timeouts, repeated runs, deterministic parallelism |
+| **Assertions** | exit code, stdout, stderr, generated files, exact file contents |
+| **Agent support** | direct commands or prompt-driven CLI adapters |
+| **Reports** | JSON, standalone HTML, and JUnit XML |
+| **Comparison** | pass rate, duration, task-set checks, SHA-256 benchmark fingerprints |
+| **CI/CD** | reusable GitHub Action, Python 3.10–3.12 CI, package/release workflows |
+| **Distribution** | published on PyPI with GitHub OIDC Trusted Publishing |
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[Benchmark JSON] --> B[Validate schema & paths]
+    B --> C{Execution mode}
+    C -->|Direct command| D[Run command]
+    C -->|Agent adapter| E[Inject prompt into CLI adapter]
+    D --> F[Isolated temp workspace]
+    E --> F
+    F --> G[Check exit / stdout / stderr / files / timeout]
+    G --> H[JSON + HTML + JUnit]
+    H --> I[Compare runs / agents]
+    I --> J[Fingerprint-aware result]
+```
+
+## 60-second example
+
+```bash
+agent-eval-validate examples/starter-benchmark.json
+
+agent-eval examples/starter-benchmark.json \
+  --runs 3 \
+  --parallel 2 \
+  --output reports/results.json \
+  --html-output reports/results.html \
+  --junit-output reports/results.xml
+```
+
+Compare two benchmark reports:
+
+```bash
+agent-eval-compare \
+  reports/agent-a.json \
+  reports/agent-b.json \
+  --html-output reports/comparison.html
+```
+
+> The included end-to-end demo uses deterministic fixture adapters to prove the evaluation pipeline. Its scores are not presented as real LLM benchmark results.
 
 ## Why this project?
 
