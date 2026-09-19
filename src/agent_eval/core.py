@@ -75,6 +75,17 @@ def evaluate_file(path: Path) -> list[EvaluationResult]:
     tasks = payload.get("tasks")
     if not isinstance(tasks, list):
         raise ValueError("input must contain a 'tasks' list")
+
+    seen_ids: set[str] = set()
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        task_id = task.get("id")
+        if isinstance(task_id, str) and task_id.strip():
+            if task_id in seen_ids:
+                raise ValueError(f"duplicate task id: {task_id}")
+            seen_ids.add(task_id)
+
     return [evaluate_task(task) for task in tasks]
 
 
