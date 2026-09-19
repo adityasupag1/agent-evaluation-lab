@@ -178,7 +178,7 @@ def test_evaluate_file_repeats_selected_tasks_and_tracks_run_index(tmp_path):
                 "id": "python-task",
                 "tags": ["python", "smoke"],
                 "command": [sys.executable, "-c", "print('ok')"],
-                "expected_stdout": "ok\\n",
+                "expected_stdout": "ok\n",
             },
             {
                 "id": "docker-task",
