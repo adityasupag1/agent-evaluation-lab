@@ -26,7 +26,7 @@ def evaluate_task(task: dict[str, Any]) -> EvaluationResult:
     started = time.monotonic()
     try:
         with tempfile.TemporaryDirectory(prefix="agent-eval-") as workdir:
-            completed = subprocess.run(
+            _write_input_files(Path(workdir), input_files)\n            completed = subprocess.run(
                 command,
                 cwd=workdir,
                 text=True,
@@ -129,6 +129,21 @@ def _validate_task(task: dict[str, Any]) -> tuple[str, list[str], float, int, st
         raise ValueError(f"{task_id}: expected_files must map non-empty paths to text contents")
 
     return task_id, command, timeout, exit_raw, expected_stdout, expected_stderr, expected_files, input_files
+
+
+def _safe_target(root: Path, relative: str) -> Path:
+    target = (root / relative).resolve()
+    if root == target or root not in target.parents:
+        raise ValueError(f"unsafe file path: {relative}")
+    return target
+
+
+def _write_input_files(workdir: Path, input_files: dict[str, str]) -> None:
+    root = workdir.resolve()
+    for relative, content in input_files.items():
+        target = _safe_target(root, relative)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
 
 
 def _check_expected_files(workdir: Path, expected_files: dict[str, str]) -> list[str]:
