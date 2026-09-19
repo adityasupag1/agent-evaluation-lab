@@ -4,23 +4,39 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A deterministic benchmark harness for evaluating command-line coding agents through observable behavior.
+A lightweight, deterministic benchmark harness for evaluating command-line coding agents by what they actually do: exit codes, terminal output, generated files, and execution time.
 
-It provides a compact example of the engineering behind AI evaluation: reproducible task definitions, fresh working directories, execution timeouts, behavioral assertions, automated tests, and machine-readable reports.
+Agent Evaluation Lab is useful when you want repeatable agent tests without tying the benchmark to a specific model, framework, or implementation detail.
 
-## Features
+## Why this project?
 
-- JSON-defined evaluation tasks
-- Exact exit-code, stdout, and stderr assertions
-- Deterministic input-file fixtures
-- Expected output-file verification
-- Per-task execution timeouts
-- Fresh temporary working directory for every task
-- Path-safety checks for input fixtures and expected artifacts
-- Structured JSON reports and CLI exit status
-- Pytest coverage for success and failure paths
-- Docker-based reproducible execution
-- GitHub Actions matrix CI on Python 3.10, 3.11, and 3.12
+AI coding agents can produce plausible-looking solutions while still failing on observable behavior. This project turns those behaviors into explicit, reproducible checks.
+
+- **Model-agnostic:** evaluate any agent or command that can be invoked from the shell.
+- **Deterministic:** define expected exit codes, stdout/stderr, files, and timeouts.
+- **Isolated per task:** every evaluation runs in a fresh temporary workspace.
+- **Portable:** run locally, in Docker, or in CI.
+- **Machine-readable:** receive structured JSON reports suitable for automation.
+
+## Use cases
+
+- Regression testing for coding agents
+- Small benchmark suites for agent experiments
+- Reproducible evaluation of CLI-based solutions
+- CI checks for agent-generated artifacts
+- Teaching and prototyping deterministic AI-evaluation workflows
+
+## What can a task verify?
+
+| Capability | Example |
+| --- | --- |
+| Exit status | command must exit with code `0` |
+| Standard output | stdout must exactly match expected text |
+| Standard error | stderr must exactly match expected text |
+| Input fixtures | create deterministic files before execution |
+| Generated files | verify required files and exact contents |
+| Timeouts | fail tasks that exceed their allowed runtime |
+| Path safety | reject fixture/output paths that escape the workspace |
 
 ## Quick start
 
@@ -113,7 +129,9 @@ agent-evaluation-lab/
 │   ├── __init__.py
 │   ├── cli.py
 │   └── core.py
-├── tests/test_core.py
+├── tests/
+│   ├── test_cli.py
+│   └── test_core.py
 ├── Dockerfile
 ├── pyproject.toml
 └── README.md
@@ -133,6 +151,12 @@ CI runs the same test suite against all supported Python versions.
 - If `agent-eval` is not found after installation, try `python -m agent_eval.cli` or reinstall the project with `python -m pip install -e ".[dev]"`.
 - If a task fails unexpectedly, validate the task JSON and confirm that `command`, expected streams, and file paths match the documented task format.
 - For Docker-related issues, make sure Docker is running and rebuild the image after dependency or source changes.
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and use [GitHub Discussions](https://github.com/adityasupag1/agent-evaluation-lab/discussions) for questions or ideas.
+
+If you find a reproducible bug or have a concrete feature request, open an issue with a minimal example.
 
 ## Scope
 
