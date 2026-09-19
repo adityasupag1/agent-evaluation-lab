@@ -36,9 +36,52 @@ def test_nonzero_exit_code_is_reported():
     assert "exit code 3" in result.reason
 
 
+def test_stderr_assertion():
+    result = evaluate_task({
+        "id": "stderr",
+        "command": [sys.executable, "-c", "import sys; print('warning', file=sys.stderr)"],
+        "expected_stderr": "warning\n",
+    })
+    assert result.passed
+
+
+def test_expected_file_content():
+    result = evaluate_task({
+        "id": "file",
+        "command": [sys.executable, "-c", "from pathlib import Path; Path('answer.txt').write_text('42')"],
+        "expected_files": {"answer.txt": "42"},
+    })
+    assert result.passed
+
+
+def test_missing_file_is_reported():
+    result = evaluate_task({
+        "id": "missing-file",
+        "command": [sys.executable, "-c", "pass"],
+        "expected_files": {"answer.txt": "42"},
+    })
+    assert not result.passed
+    assert result.reason == "missing file: answer.txt"
+
+
+def test_path_escape_is_rejected():
+    result = evaluate_task({
+        "id": "unsafe-file",
+        "command": [sys.executable, "-c", "pass"],
+        "expected_files": {"../outside.txt": "nope"},
+    })
+    assert not result.passed
+    assert "unsafe expected file path" in result.reason
+
+
 def test_invalid_command_is_rejected():
     with pytest.raises(ValueError, match="command"):
         evaluate_task({"id": "invalid", "command": "echo hi"})
+
+
+def test_nonpositive_timeout_is_rejected():
+    with pytest.raises(ValueError, match="timeout_seconds"):
+        evaluate_task({"id": "invalid-timeout", "command": ["echo", "hi"], "timeout_seconds": 0})
 
 
 def test_report_summary():
