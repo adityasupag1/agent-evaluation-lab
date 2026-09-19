@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 
@@ -69,9 +69,34 @@ def validate_benchmark_file(path: Path) -> dict[str, Any]:
                 raise ValueError(
                     f"{task_id}: {field} must map non-empty paths to text contents"
                 )
+            for relative in value:
+                if not _is_safe_relative_path(relative):
+                    raise ValueError(f"{task_id}: unsafe {field} path: {relative}")
 
     return {
         "valid": True,
         "task_count": len(tasks),
         "task_ids": [task["id"] for task in tasks],
     }
+
+
+def _is_safe_relative_path(value: str) -> bool:
+    for path_type in (PurePosixPath, PureWindowsPath):
+        path = path_type(value)
+        if path.is_absolute() or getattr(path, "drive", ""):
+            return False
+
+        depth = 0
+        for part in path.parts:
+            if part in ("", "."):
+                continue
+            if part == "..":
+                depth -= 1
+                if depth < 0:
+                    return False
+            else:
+                depth += 1
+        if depth == 0:
+            return False
+
+    return True
