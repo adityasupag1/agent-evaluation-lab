@@ -135,3 +135,14 @@ def test_expected_file_dot_path_is_reported_unsafe():
     })
     assert not result.passed
     assert result.reason == "unsafe expected file path: ."
+
+
+def test_timeout_is_reported():
+    result = evaluate_task({
+        "id": "timeout",
+        "command": [sys.executable, "-c", "import time; time.sleep(0.2)"],
+        "timeout_seconds": 0.05,
+    })
+    assert not result.passed
+    assert result.exit_code is None
+    assert result.reason == "timeout after 0.05s"
