@@ -19,6 +19,15 @@ def compare_report_files(paths: list[Path]) -> dict[str, Any]:
     common_tasks = set.intersection(*task_sets) if task_sets else set()
     same_task_set = all(task_set == task_sets[0] for task_set in task_sets[1:])
 
+    fingerprints = [entry["fingerprint"] for entry in entries]
+    known_fingerprints = [value for value in fingerprints if value is not None]
+    fingerprint_coverage = len(known_fingerprints)
+    same_benchmark: bool | None
+    if fingerprint_coverage == len(entries):
+        same_benchmark = len(set(known_fingerprints)) == 1
+    else:
+        same_benchmark = None
+
     reports = sorted(
         (
             {
@@ -30,10 +39,17 @@ def compare_report_files(paths: list[Path]) -> dict[str, Any]:
                 "pass_rate": entry["metrics"]["pass_rate"],
                 "average_duration_seconds": entry["metrics"]["average_duration_seconds"],
                 "task_count": len(entry["task_ids"]),
+                "benchmark_name": entry["benchmark_name"],
+                "benchmark_version": entry["benchmark_version"],
+                "fingerprint": entry["fingerprint"],
             }
             for entry in entries
         ),
-        key=lambda item: (-float(item["pass_rate"]), float(item["average_duration_seconds"]), str(item["label"])),
+        key=lambda item: (
+            -float(item["pass_rate"]),
+            float(item["average_duration_seconds"]),
+            str(item["label"]),
+        ),
     )
 
     return {
@@ -41,6 +57,8 @@ def compare_report_files(paths: list[Path]) -> dict[str, Any]:
             "report_count": len(reports),
             "same_task_set": same_task_set,
             "common_task_count": len(common_tasks),
+            "same_benchmark": same_benchmark,
+            "fingerprint_coverage": fingerprint_coverage,
         },
         "reports": reports,
     }
@@ -50,21 +68,37 @@ def render_comparison_html(payload: dict[str, Any]) -> str:
     comparison = payload["comparison"]
     rows = []
     for report in payload["reports"]:
+        benchmark = report.get("benchmark_name") or "—"
+        version = report.get("benchmark_version") or "—"
+        fingerprint = report.get("fingerprint") or "unavailable"
         rows.append(
             "<tr>"
             f"<td>{escape(str(report['label']))}</td>"
+            f"<td>{escape(str(benchmark))}</td>"
+            f"<td>{escape(str(version))}</td>"
             f"<td>{report['passed']}/{report['total']}</td>"
             f"<td>{float(report['pass_rate']) * 100:.1f}%</td>"
             f"<td>{float(report['average_duration_seconds']):.3f}s</td>"
-            f"<td>{report['task_count']}</td>"
+            f"<td><code>{escape(str(fingerprint))}</code></td>"
             "</tr>"
         )
 
-    note = (
-        "All reports contain the same task set."
-        if comparison["same_task_set"]
-        else f"Task sets differ; {comparison['common_task_count']} task(s) are shared by every report."
-    )
+    notes: list[str] = []
+    if comparison["same_benchmark"] is True:
+        notes.append("All reports contain the same benchmark fingerprint.")
+    elif comparison["same_benchmark"] is False:
+        notes.append("Benchmark fingerprints differ; results may not be directly comparable.")
+    else:
+        notes.append(
+            "Benchmark fingerprint provenance is unavailable for one or more reports."
+        )
+
+    if comparison["same_task_set"]:
+        notes.append("All reports contain the same task-ID set.")
+    else:
+        notes.append(
+            f"Task-ID sets differ; {comparison['common_task_count']} task(s) are shared by every report."
+        )
 
     return f"""<!doctype html>
 <html lang="en">
@@ -78,14 +112,15 @@ def render_comparison_html(payload: dict[str, Any]) -> str:
     th, td {{ border-bottom: 1px solid #d0d7de; padding: 0.65rem; text-align: left; }}
     th {{ font-weight: 600; }}
     .note {{ padding: 0.8rem 1rem; border: 1px solid #d0d7de; border-radius: 8px; }}
+    code {{ font-size: 0.85em; overflow-wrap: anywhere; }}
   </style>
 </head>
 <body>
   <h1>Agent Benchmark Comparison</h1>
-  <p class="note">{escape(note)}</p>
+  <p class="note">{escape(" ".join(notes))}</p>
   <table>
     <thead>
-      <tr><th>Label</th><th>Passed</th><th>Pass rate</th><th>Avg duration</th><th>Tasks</th></tr>
+      <tr><th>Label</th><th>Benchmark</th><th>Version</th><th>Passed</th><th>Pass rate</th><th>Avg duration</th><th>Fingerprint</th></tr>
     </thead>
     <tbody>{''.join(rows)}</tbody>
   </table>
@@ -110,27 +145,58 @@ def _load_report(path: Path) -> dict[str, Any]:
     failed = summary.get("failed")
     pass_rate = metrics.get("pass_rate")
     average_duration = metrics.get("average_duration_seconds")
-    if not all(isinstance(value, int) and not isinstance(value, bool) and value >= 0 for value in (total, passed, failed)):
+    if not all(
+        isinstance(value, int) and not isinstance(value, bool) and value >= 0
+        for value in (total, passed, failed)
+    ):
         raise ValueError(f"{path}: invalid summary counts")
     if passed + failed != total:
         raise ValueError(f"{path}: summary counts are inconsistent")
-    if isinstance(pass_rate, bool) or not isinstance(pass_rate, (int, float)) or not 0 <= pass_rate <= 1:
+    if (
+        isinstance(pass_rate, bool)
+        or not isinstance(pass_rate, (int, float))
+        or not 0 <= pass_rate <= 1
+    ):
         raise ValueError(f"{path}: invalid pass_rate")
-    if isinstance(average_duration, bool) or not isinstance(average_duration, (int, float)) or average_duration < 0:
+    if (
+        isinstance(average_duration, bool)
+        or not isinstance(average_duration, (int, float))
+        or average_duration < 0
+    ):
         raise ValueError(f"{path}: invalid average_duration_seconds")
 
     task_ids: list[str] = []
     for task in tasks:
-        if not isinstance(task, dict) or not isinstance(task.get("task_id"), str) or not task["task_id"]:
+        if (
+            not isinstance(task, dict)
+            or not isinstance(task.get("task_id"), str)
+            or not task["task_id"]
+        ):
             raise ValueError(f"{path}: invalid task summary")
         task_ids.append(task["task_id"])
 
     benchmark = payload.get("benchmark")
     label = None
+    benchmark_name = None
+    benchmark_version = None
+    fingerprint = None
     if isinstance(benchmark, dict):
         candidate = benchmark.get("label") or benchmark.get("agent")
         if isinstance(candidate, str) and candidate.strip():
             label = candidate.strip()
+
+        name_candidate = benchmark.get("name")
+        if isinstance(name_candidate, str) and name_candidate.strip():
+            benchmark_name = name_candidate.strip()
+
+        version_candidate = benchmark.get("version")
+        if isinstance(version_candidate, str) and version_candidate.strip():
+            benchmark_version = version_candidate.strip()
+
+        fingerprint_candidate = benchmark.get("fingerprint")
+        if isinstance(fingerprint_candidate, str) and fingerprint_candidate.startswith("sha256:"):
+            fingerprint = fingerprint_candidate
+
     if label is None:
         label = path.stem
 
@@ -143,4 +209,7 @@ def _load_report(path: Path) -> dict[str, Any]:
             "average_duration_seconds": float(average_duration),
         },
         "task_ids": task_ids,
+        "benchmark_name": benchmark_name,
+        "benchmark_version": benchmark_version,
+        "fingerprint": fingerprint,
     }
