@@ -338,9 +338,11 @@ agent-evaluation-lab/
 ├── .github/workflows/ci.yml
 ├── .github/workflows/demo.yml
 ├── .github/workflows/package.yml
+├── .github/workflows/release.yml
 ├── action.yml
 ├── docs/benchmark.schema.json
 ├── docs/demo.md
+├── docs/pypi-publishing.md
 ├── examples/agent-demo-benchmark.json
 ├── examples/agents/
 ├── examples/starter-benchmark.json
@@ -379,7 +381,9 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and [the v0.6.0 release not
 
 The [Package workflow](.github/workflows/package.yml) builds both wheel and source distributions, validates their metadata with Twine, installs the wheel in a clean virtual environment, smoke-tests all three CLI entry points, and uploads the resulting `dist/` files as a workflow artifact.
 
-This verifies package readiness without storing publishing credentials in the repository. The project is not claiming a PyPI publication until an actual PyPI release exists.
+The repository also contains a dedicated [PyPI release workflow](.github/workflows/release.yml) that uses GitHub OIDC Trusted Publishing instead of a long-lived API token. It verifies that the GitHub release tag matches the package version, builds distributions in a separate job, and grants `id-token: write` only to the final publish job.
+
+PyPI account-side Trusted Publisher configuration is a one-time setup. See [docs/pypi-publishing.md](docs/pypi-publishing.md) for the exact publisher values and release procedure. The project does not claim PyPI availability until the first trusted publish succeeds.
 
 ## Development
 

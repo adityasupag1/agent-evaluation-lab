@@ -6,6 +6,8 @@ All notable changes to Agent Evaluation Lab are documented here.
 
 ### Added
 
+- Secure PyPI Trusted Publishing workflow using GitHub OIDC, release-tag/version verification, separated build/publish jobs, and a protected `pypi` environment.
+- Exact one-time Pending Publisher and GitHub environment setup guide for first-time PyPI publication.
 - Distribution build workflow that creates wheel/source archives, validates metadata, installs the wheel in a clean environment, smoke-tests the CLIs, and uploads the built files as an artifact.
 - PyPI-facing package metadata including project URLs, keywords, and classifiers.
 - Credential-free end-to-end prompt-agent demo with deterministic reference and intentionally partial fixture adapters.
