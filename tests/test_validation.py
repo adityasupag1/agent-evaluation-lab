@@ -73,3 +73,20 @@ def test_published_schema_is_valid_json():
 
     assert payload["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     assert payload["title"] == "Agent Evaluation Lab benchmark"
+
+
+@pytest.mark.parametrize("path_value", ["../escape.txt", "/absolute.txt", ".", "nested/../..", "C:\\temp\\escape.txt"])
+def test_validate_benchmark_file_rejects_unsafe_paths(tmp_path, path_value):
+    path = tmp_path / "benchmark.json"
+    path.write_text(json.dumps({
+        "tasks": [
+            {
+                "id": "unsafe-path",
+                "command": ["echo", "ok"],
+                "expected_files": {path_value: "x"},
+            }
+        ]
+    }))
+
+    with pytest.raises(ValueError, match="unsafe expected_files path"):
+        validate_benchmark_file(path)
