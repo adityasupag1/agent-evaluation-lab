@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import tempfile
 import time
 from dataclasses import asdict, dataclass
@@ -73,9 +74,11 @@ def evaluate_task(task: dict[str, Any], *, run_index: int = 1) -> EvaluationResu
     )
 
 
-def evaluate_file(path: Path, *, runs: int = 1, tags: list[str] | None = None, agent: AgentSpec | None = None) -> list[EvaluationResult]:
+def evaluate_file(path: Path, *, runs: int = 1, tags: list[str] | None = None, agent: AgentSpec | None = None, parallel: int = 1) -> list[EvaluationResult]:
     if isinstance(runs, bool) or not isinstance(runs, int) or runs <= 0:
         raise ValueError("runs must be a positive integer")
+    if isinstance(parallel, bool) or not isinstance(parallel, int) or parallel <= 0:
+        raise ValueError("parallel must be a positive integer")
 
     requested_tags = _normalize_tags(tags)
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -102,13 +105,30 @@ def evaluate_file(path: Path, *, runs: int = 1, tags: list[str] | None = None, a
             if requested_tags.intersection(task.get("tags", []))
         ]
 
-    results: list[EvaluationResult] = []
-    for run_index in range(1, runs + 1):
-        results.extend(
-            evaluate_task(task, run_index=run_index)
+    jobs = [
+        (order, task, run_index)
+        for order, (run_index, task) in enumerate(
+            (run_index, task)
+            for run_index in range(1, runs + 1)
             for task in validated_tasks
         )
-    return results
+    ]
+    if parallel == 1:
+        return [
+            evaluate_task(task, run_index=run_index)
+            for _, task, run_index in jobs
+        ]
+
+    completed_results: dict[int, EvaluationResult] = {}
+    with ThreadPoolExecutor(max_workers=parallel) as executor:
+        futures = {
+            executor.submit(evaluate_task, task, run_index=run_index): order
+            for order, task, run_index in jobs
+        }
+        for future in as_completed(futures):
+            completed_results[futures[future]] = future.result()
+
+    return [completed_results[index] for index in range(len(jobs))]
 
 
 def report(results: list[EvaluationResult], *, agent_name: str | None = None, label: str | None = None) -> dict[str, Any]:
