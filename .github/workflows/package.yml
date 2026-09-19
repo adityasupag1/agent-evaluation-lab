@@ -1,0 +1,60 @@
+name: Package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade build twine
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Validate package metadata
+        run: python -m twine check dist/*
+
+      - name: Smoke-test built wheel in clean virtualenv
+        run: |
+          python -m venv /tmp/agent-eval-wheel
+          /tmp/agent-eval-wheel/bin/python -m pip install --upgrade pip
+          /tmp/agent-eval-wheel/bin/python -m pip install dist/*.whl
+          /tmp/agent-eval-wheel/bin/agent-eval --help
+          /tmp/agent-eval-wheel/bin/agent-eval-compare --help
+          /tmp/agent-eval-wheel/bin/agent-eval-validate --help
+
+          cat > /tmp/package-smoke.json <<'JSON'
+          {
+            "name": "package-smoke",
+            "version": "1.0.0",
+            "tasks": [
+              {
+                "id": "smoke",
+                "command": ["python", "-c", "print('ok')"],
+                "expected_stdout": "ok\n"
+              }
+            ]
+          }
+          JSON
+
+          /tmp/agent-eval-wheel/bin/agent-eval-validate /tmp/package-smoke.json
+          /tmp/agent-eval-wheel/bin/agent-eval /tmp/package-smoke.json --output /tmp/package-smoke-report.json
+          /tmp/agent-eval-wheel/bin/python -c "import json; p=json.load(open('/tmp/package-smoke-report.json')); assert p['summary']=={'total': 1, 'passed': 1, 'failed': 0}"
+
+      - name: Upload Python distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/
