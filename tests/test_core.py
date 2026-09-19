@@ -116,3 +116,22 @@ def test_unsafe_input_file_path_is_rejected():
             "input_files": {"../outside.txt": "nope"},
             "command": [sys.executable, "-c", "pass"],
         })
+
+
+def test_input_file_dot_path_is_rejected():
+    with pytest.raises(ValueError, match="unsafe file path"):
+        evaluate_task({
+            "id": "dot-fixture",
+            "input_files": {".": "nope"},
+            "command": [sys.executable, "-c", "pass"],
+        })
+
+
+def test_expected_file_dot_path_is_reported_unsafe():
+    result = evaluate_task({
+        "id": "dot-expected",
+        "command": [sys.executable, "-c", "pass"],
+        "expected_files": {".": "nope"},
+    })
+    assert not result.passed
+    assert result.reason == "unsafe expected file path: ."

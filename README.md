@@ -6,16 +6,17 @@
 
 A deterministic benchmark harness for evaluating command-line coding agents through observable behavior.
 
-It provides a compact example of the engineering behind AI evaluation: reproducible task definitions, isolated execution, resource limits, behavioral assertions, automated tests, and machine-readable reports.
+It provides a compact example of the engineering behind AI evaluation: reproducible task definitions, fresh working directories, execution timeouts, behavioral assertions, automated tests, and machine-readable reports.
 
 ## Features
 
 - JSON-defined evaluation tasks
 - Exact exit-code, stdout, and stderr assertions
+- Deterministic input-file fixtures
 - Expected output-file verification
 - Per-task execution timeouts
 - Fresh temporary working directory for every task
-- Path-safety checks for expected artifacts
+- Path-safety checks for input fixtures and expected artifacts
 - Structured JSON reports and CLI exit status
 - Pytest coverage for success and failure paths
 - Docker-based reproducible execution
@@ -47,10 +48,13 @@ docker run --rm agent-evaluation-lab
   "tasks": [
     {
       "id": "write-answer",
+      "input_files": {
+        "question.txt": "What is 6 * 7?"
+      },
       "command": [
         "python",
         "-c",
-        "from pathlib import Path; Path('answer.txt').write_text('42'); print('done')"
+        from pathlib import Path; text = Path('question.txt').read_text(); Path('answer.txt').write_text('42'); print('done')
       ],
       "expected_exit_code": 0,
       "expected_stdout": "done\n",
@@ -64,7 +68,7 @@ docker run --rm agent-evaluation-lab
 }
 ```
 
-Each task runs in a fresh temporary directory. Checks target externally visible behavior rather than source-code structure or implementation-specific names.
+Each task runs in a fresh temporary directory. `input_files` are materialized before the command starts, nested directories are created automatically, and paths that escape the task workspace are rejected. Checks target externally visible behavior rather than source-code structure or implementation-specific names.
 
 ## Report format
 
@@ -93,7 +97,7 @@ Each task runs in a fresh temporary directory. Checks target externally visible 
 
 **Deterministic checks.** Assertions compare explicit observable outputs, making failures straightforward to reproduce.
 
-**Isolation.** Every command receives its own temporary working directory so tasks do not accidentally share state.
+**Workspace isolation.** Every command receives its own temporary working directory so tasks do not accidentally share state. This is filesystem workspace separation, not an OS-level security sandbox.
 
 **Failure visibility.** Timeout, exit-code, stream, missing-file, and file-content failures are represented in the report rather than hidden behind a single score.
 
