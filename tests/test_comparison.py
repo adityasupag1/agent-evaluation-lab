@@ -5,7 +5,7 @@ import pytest
 from agent_eval.comparison import compare_report_files, render_comparison_html
 
 
-def _write_report(path, *, label, passed, total, avg_duration, task_ids):
+def _write_report(path, *, label, passed, total, avg_duration, task_ids, fingerprint=None, benchmark_name=None, benchmark_version=None):
     payload = {
         "benchmark": {"label": label},
         "summary": {
@@ -30,6 +30,12 @@ def _write_report(path, *, label, passed, total, avg_duration, task_ids):
         ],
         "results": [],
     }
+    if fingerprint is not None:
+        payload["benchmark"]["fingerprint"] = fingerprint
+    if benchmark_name is not None:
+        payload["benchmark"]["name"] = benchmark_name
+    if benchmark_version is not None:
+        payload["benchmark"]["version"] = benchmark_version
     path.write_text(json.dumps(payload))
 
 
@@ -48,6 +54,8 @@ def test_compare_reports_orders_by_pass_rate_then_duration(tmp_path):
         "report_count": 3,
         "same_task_set": True,
         "common_task_count": 2,
+        "same_benchmark": None,
+        "fingerprint_coverage": 0,
     }
 
 
@@ -95,3 +103,98 @@ def test_render_comparison_html_escapes_labels():
     assert "Agent Benchmark Comparison" in rendered
     assert "&lt;Agent&gt;" in rendered
     assert "<Agent>" not in rendered
+
+
+def test_compare_reports_confirms_matching_fingerprints(tmp_path):
+    first = tmp_path / "first.json"
+    second = tmp_path / "second.json"
+    fingerprint = "sha256:" + "a" * 64
+    _write_report(
+        first,
+        label="A",
+        passed=1,
+        total=1,
+        avg_duration=1.0,
+        task_ids=["shared"],
+        fingerprint=fingerprint,
+        benchmark_name="suite",
+        benchmark_version="1.0.0",
+    )
+    _write_report(
+        second,
+        label="B",
+        passed=1,
+        total=1,
+        avg_duration=1.0,
+        task_ids=["shared"],
+        fingerprint=fingerprint,
+        benchmark_name="suite",
+        benchmark_version="1.0.0",
+    )
+
+    payload = compare_report_files([first, second])
+
+    assert payload["comparison"]["same_benchmark"] is True
+    assert payload["comparison"]["fingerprint_coverage"] == 2
+    assert all(report["fingerprint"] == fingerprint for report in payload["reports"])
+    assert all(report["benchmark_name"] == "suite" for report in payload["reports"])
+
+
+def test_compare_reports_flags_same_ids_with_different_fingerprints(tmp_path):
+    first = tmp_path / "first.json"
+    second = tmp_path / "second.json"
+    _write_report(
+        first,
+        label="A",
+        passed=1,
+        total=1,
+        avg_duration=1.0,
+        task_ids=["same-id"],
+        fingerprint="sha256:" + "a" * 64,
+    )
+    _write_report(
+        second,
+        label="B",
+        passed=1,
+        total=1,
+        avg_duration=1.0,
+        task_ids=["same-id"],
+        fingerprint="sha256:" + "b" * 64,
+    )
+
+    payload = compare_report_files([first, second])
+
+    assert payload["comparison"]["same_task_set"] is True
+    assert payload["comparison"]["same_benchmark"] is False
+
+
+def test_comparison_html_warns_when_fingerprints_differ():
+    payload = {
+        "comparison": {
+            "report_count": 2,
+            "same_task_set": True,
+            "common_task_count": 1,
+            "same_benchmark": False,
+            "fingerprint_coverage": 2,
+        },
+        "reports": [
+            {
+                "label": "A",
+                "source": "a.json",
+                "total": 1,
+                "passed": 1,
+                "failed": 0,
+                "pass_rate": 1.0,
+                "average_duration_seconds": 0.5,
+                "task_count": 1,
+                "benchmark_name": "suite",
+                "benchmark_version": "1.0.0",
+                "fingerprint": "sha256:" + "a" * 64,
+            }
+        ],
+    }
+
+    rendered = render_comparison_html(payload)
+
+    assert "Benchmark fingerprints differ" in rendered
+    assert "suite" in rendered
