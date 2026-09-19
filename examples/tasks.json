@@ -1,10 +1,21 @@
 {
   "tasks": [
     {
-      "id": "hello-python",
-      "command": ["python", "-c", "print('hello')"],
+      "id": "transform-fixture",
+      "input_files": {
+        "data/input.txt": "hello"
+      },
+      "command": [
+        "python",
+        "-c",
+        "from pathlib import Path; text = Path('data/input.txt').read_text(); Path('result.txt').write_text(text.upper()); print('processed')"
+      ],
       "expected_exit_code": 0,
-      "expected_stdout": "hello\n",
+      "expected_stdout": "processed\n",
+      "expected_stderr": "",
+      "expected_files": {
+        "result.txt": "HELLO"
+      },
       "timeout_seconds": 5
     }
   ]
