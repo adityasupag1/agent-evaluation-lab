@@ -54,7 +54,7 @@ docker run --rm agent-evaluation-lab
       "command": [
         "python",
         "-c",
-        from pathlib import Path; text = Path('question.txt').read_text(); Path('answer.txt').write_text('42'); print('done')
+        "from pathlib import Path; text = Path('question.txt').read_text(); Path('answer.txt').write_text('42'); print('done')"
       ],
       "expected_exit_code": 0,
       "expected_stdout": "done\n",
