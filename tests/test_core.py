@@ -277,3 +277,40 @@ def test_report_includes_benchmark_metadata():
     payload = report([result], agent_name="demo-agent", label="trial-1")
 
     assert payload["benchmark"] == {"agent": "demo-agent", "label": "trial-1"}
+
+
+def test_parallel_execution_preserves_deterministic_result_order(tmp_path):
+    path = tmp_path / "tasks.json"
+    path.write_text(json.dumps({
+        "tasks": [
+            {
+                "id": "slow",
+                "command": [sys.executable, "-c", "import time; time.sleep(0.05); print('slow')"],
+                "expected_stdout": "slow\n",
+            },
+            {
+                "id": "fast",
+                "command": [sys.executable, "-c", "print('fast')"],
+                "expected_stdout": "fast\n",
+            },
+        ]
+    }))
+
+    results = evaluate_file(path, runs=2, parallel=2)
+
+    assert [(result.run_index, result.task_id) for result in results] == [
+        (1, "slow"),
+        (1, "fast"),
+        (2, "slow"),
+        (2, "fast"),
+    ]
+    assert all(result.passed for result in results)
+
+
+@pytest.mark.parametrize("parallel", [0, -1, True, 1.5])
+def test_invalid_parallel_count_is_rejected(tmp_path, parallel):
+    path = tmp_path / "tasks.json"
+    path.write_text(json.dumps({"tasks": []}))
+
+    with pytest.raises(ValueError, match="parallel"):
+        evaluate_file(path, parallel=parallel)
