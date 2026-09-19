@@ -1,87 +1,85 @@
+import json
 import sys
 
 import pytest
 
-from agent_eval.core import evaluate_task, report
+from agent_eval.core import evaluate_file, evaluate_task, report
 
 
 def test_passing_task():
-    result = evaluate_task({
-        "id": "pass",
-        "command": [sys.executable, "-c", "print('ok')"],
-        "expected_stdout": "ok\n",
-        "expected_exit_code": 0,
-    })
+    result = evaluate_task({"id": "pass", "command": [sys.executable, "-c", "print('ok')"], "expected_stdout": "ok\n"})
     assert result.passed
     assert result.reason is None
 
 
 def test_stdout_mismatch_is_reported():
-    result = evaluate_task({
-        "id": "wrong-output",
-        "command": [sys.executable, "-c", "print('actual')"],
-        "expected_stdout": "expected\n",
-    })
+    result = evaluate_task({"id": "wrong-output", "command": [sys.executable, "-c", "print('actual')"], "expected_stdout": "expected\n"})
     assert not result.passed
     assert result.reason == "stdout mismatch"
 
 
 def test_nonzero_exit_code_is_reported():
-    result = evaluate_task({
-        "id": "bad-exit",
-        "command": [sys.executable, "-c", "raise SystemExit(3)"],
-        "expected_exit_code": 0,
-    })
+    result = evaluate_task({"id": "bad-exit", "command": [sys.executable, "-c", "raise SystemExit(3)"]})
     assert not result.passed
     assert "exit code 3" in result.reason
 
 
 def test_stderr_assertion():
-    result = evaluate_task({
-        "id": "stderr",
-        "command": [sys.executable, "-c", "import sys; print('warning', file=sys.stderr)"],
-        "expected_stderr": "warning\n",
-    })
+    result = evaluate_task({"id": "stderr", "command": [sys.executable, "-c", "import sys; print('warning', file=sys.stderr)"], "expected_stderr": "warning\n"})
     assert result.passed
 
 
 def test_expected_file_content():
-    result = evaluate_task({
-        "id": "file",
-        "command": [sys.executable, "-c", "from pathlib import Path; Path('answer.txt').write_text('42')"],
-        "expected_files": {"answer.txt": "42"},
-    })
+    result = evaluate_task({"id": "file", "command": [sys.executable, "-c", "from pathlib import Path; Path('answer.txt').write_text('42')"], "expected_files": {"answer.txt": "42"}})
     assert result.passed
 
 
 def test_missing_file_is_reported():
-    result = evaluate_task({
-        "id": "missing-file",
-        "command": [sys.executable, "-c", "pass"],
-        "expected_files": {"answer.txt": "42"},
-    })
+    result = evaluate_task({"id": "missing-file", "command": [sys.executable, "-c", "pass"], "expected_files": {"answer.txt": "42"}})
     assert not result.passed
     assert result.reason == "missing file: answer.txt"
 
 
 def test_path_escape_is_rejected():
-    result = evaluate_task({
-        "id": "unsafe-file",
-        "command": [sys.executable, "-c", "pass"],
-        "expected_files": {"../outside.txt": "nope"},
-    })
+    result = evaluate_task({"id": "unsafe-file", "command": [sys.executable, "-c", "pass"], "expected_files": {"../outside.txt": "nope"}})
     assert not result.passed
     assert "unsafe expected file path" in result.reason
 
 
-def test_invalid_command_is_rejected():
-    with pytest.raises(ValueError, match="command"):
-        evaluate_task({"id": "invalid", "command": "echo hi"})
+@pytest.mark.parametrize("task", [
+    {},
+    {"id": "", "command": ["echo", "hi"]},
+    {"id": "bad", "command": "echo hi"},
+    {"id": "bad", "command": [""]},
+])
+def test_invalid_task_shape_is_rejected(task):
+    with pytest.raises(ValueError):
+        evaluate_task(task)
 
 
-def test_nonpositive_timeout_is_rejected():
+@pytest.mark.parametrize("timeout", [0, -1, True, "5"])
+def test_invalid_timeout_is_rejected(timeout):
     with pytest.raises(ValueError, match="timeout_seconds"):
-        evaluate_task({"id": "invalid-timeout", "command": ["echo", "hi"], "timeout_seconds": 0})
+        evaluate_task({"id": "invalid-timeout", "command": ["echo", "hi"], "timeout_seconds": timeout})
+
+
+def test_invalid_expected_exit_code_is_rejected():
+    with pytest.raises(ValueError, match="expected_exit_code"):
+        evaluate_task({"id": "bad-exit-type", "command": ["echo", "hi"], "expected_exit_code": "0"})
+
+
+def test_evaluate_file_rejects_non_object_json(tmp_path):
+    path = tmp_path / "tasks.json"
+    path.write_text(json.dumps([]))
+    with pytest.raises(ValueError, match="JSON object"):
+        evaluate_file(path)
+
+
+def test_evaluate_file_rejects_missing_tasks(tmp_path):
+    path = tmp_path / "tasks.json"
+    path.write_text("{}")
+    with pytest.raises(ValueError, match="tasks"):
+        evaluate_file(path)
 
 
 def test_report_summary():

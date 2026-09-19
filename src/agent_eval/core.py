@@ -21,23 +21,7 @@ class EvaluationResult:
 
 
 def evaluate_task(task: dict[str, Any]) -> EvaluationResult:
-    task_id = str(task["id"])
-    command = task["command"]
-    timeout = float(task.get("timeout_seconds", 10))
-    expected_exit = int(task.get("expected_exit_code", 0))
-    expected_stdout = task.get("expected_stdout")
-    expected_stderr = task.get("expected_stderr")
-    expected_files = task.get("expected_files", {})
-
-    if not isinstance(command, list) or not command or not all(isinstance(x, str) for x in command):
-        raise ValueError(f"{task_id}: command must be a non-empty list of strings")
-    if timeout <= 0:
-        raise ValueError(f"{task_id}: timeout_seconds must be positive")
-    if not isinstance(expected_files, dict) or not all(
-        isinstance(path, str) and isinstance(content, str)
-        for path, content in expected_files.items()
-    ):
-        raise ValueError(f"{task_id}: expected_files must map paths to text contents")
+    task_id, command, timeout, expected_exit, expected_stdout, expected_stderr, expected_files = _validate_task(task)
 
     started = time.monotonic()
     try:
@@ -85,6 +69,8 @@ def evaluate_task(task: dict[str, Any]) -> EvaluationResult:
 
 def evaluate_file(path: Path) -> list[EvaluationResult]:
     payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("input must be a JSON object")
     tasks = payload.get("tasks")
     if not isinstance(tasks, list):
         raise ValueError("input must contain a 'tasks' list")
@@ -97,6 +83,45 @@ def report(results: list[EvaluationResult]) -> dict[str, Any]:
         "summary": {"total": len(results), "passed": passed, "failed": len(results) - passed},
         "results": [asdict(result) for result in results],
     }
+
+
+def _validate_task(task: dict[str, Any]) -> tuple[str, list[str], float, int, str | None, str | None, dict[str, str]]:
+    if not isinstance(task, dict):
+        raise ValueError("each task must be a JSON object")
+    if "id" not in task or not isinstance(task["id"], str) or not task["id"].strip():
+        raise ValueError("task id must be a non-empty string")
+    if "command" not in task:
+        raise ValueError(f"{task['id']}: missing command")
+
+    task_id = task["id"]
+    command = task["command"]
+    if not isinstance(command, list) or not command or not all(isinstance(x, str) and x for x in command):
+        raise ValueError(f"{task_id}: command must be a non-empty list of non-empty strings")
+
+    timeout_raw = task.get("timeout_seconds", 10)
+    if isinstance(timeout_raw, bool) or not isinstance(timeout_raw, (int, float)) or timeout_raw <= 0:
+        raise ValueError(f"{task_id}: timeout_seconds must be a positive number")
+    timeout = float(timeout_raw)
+
+    exit_raw = task.get("expected_exit_code", 0)
+    if isinstance(exit_raw, bool) or not isinstance(exit_raw, int):
+        raise ValueError(f"{task_id}: expected_exit_code must be an integer")
+
+    expected_stdout = task.get("expected_stdout")
+    expected_stderr = task.get("expected_stderr")
+    if expected_stdout is not None and not isinstance(expected_stdout, str):
+        raise ValueError(f"{task_id}: expected_stdout must be a string")
+    if expected_stderr is not None and not isinstance(expected_stderr, str):
+        raise ValueError(f"{task_id}: expected_stderr must be a string")
+
+    expected_files = task.get("expected_files", {})
+    if not isinstance(expected_files, dict) or not all(
+        isinstance(path, str) and path and isinstance(content, str)
+        for path, content in expected_files.items()
+    ):
+        raise ValueError(f"{task_id}: expected_files must map non-empty paths to text contents")
+
+    return task_id, command, timeout, exit_raw, expected_stdout, expected_stderr, expected_files
 
 
 def _check_expected_files(workdir: Path, expected_files: dict[str, str]) -> list[str]:
