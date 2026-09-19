@@ -38,6 +38,19 @@ AI coding agents can produce plausible-looking solutions while still failing on 
 | Timeouts | fail tasks that exceed their allowed runtime |
 | Path safety | reject fixture/output paths that escape the workspace |
 
+## End-to-end demo
+
+A credential-free demo exercises the complete prompt-agent flow with two deterministic fixture adapters. It is designed to prove the plumbing—not to claim real LLM benchmark scores.
+
+| Demo adapter | Expected result |
+| --- | ---: |
+| `demo-reference` | 5/5 (100%) |
+| `demo-partial` | 3/5 (60%) |
+
+Both adapters run against the exact same fingerprinted benchmark definition, then `agent-eval-compare` produces a JSON and HTML comparison.
+
+See [docs/demo.md](docs/demo.md) for the commands and [the demo workflow](.github/workflows/demo.yml) for the CI implementation.
+
 ## Quick start
 
 ```bash
@@ -320,8 +333,12 @@ JSON reports keep the original pass/fail summary, provenance, benchmark-level me
 ```text
 agent-evaluation-lab/
 ├── .github/workflows/ci.yml
+├── .github/workflows/demo.yml
 ├── action.yml
 ├── docs/benchmark.schema.json
+├── docs/demo.md
+├── examples/agent-demo-benchmark.json
+├── examples/agents/
 ├── examples/starter-benchmark.json
 ├── examples/tasks.json
 ├── src/agent_eval/
@@ -331,6 +348,7 @@ agent-evaluation-lab/
 │   ├── compare_cli.py
 │   ├── comparison.py
 │   ├── core.py
+│   ├── demo_agent.py
 │   ├── html_report.py
 │   ├── junit_report.py
 │   ├── validate_cli.py
@@ -340,6 +358,7 @@ agent-evaluation-lab/
 │   ├── test_cli.py
 │   ├── test_comparison.py
 │   ├── test_core.py
+│   ├── test_demo_agent.py
 │   ├── test_html_report.py
 │   ├── test_junit_report.py
 │   └── test_validation.py
