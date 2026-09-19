@@ -4,7 +4,7 @@ import json
 import subprocess
 import tempfile
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -26,9 +26,18 @@ def evaluate_task(task: dict[str, Any]) -> EvaluationResult:
     timeout = float(task.get("timeout_seconds", 10))
     expected_exit = int(task.get("expected_exit_code", 0))
     expected_stdout = task.get("expected_stdout")
+    expected_stderr = task.get("expected_stderr")
+    expected_files = task.get("expected_files", {})
 
     if not isinstance(command, list) or not command or not all(isinstance(x, str) for x in command):
         raise ValueError(f"{task_id}: command must be a non-empty list of strings")
+    if timeout <= 0:
+        raise ValueError(f"{task_id}: timeout_seconds must be positive")
+    if not isinstance(expected_files, dict) or not all(
+        isinstance(path, str) and isinstance(content, str)
+        for path, content in expected_files.items()
+    ):
+        raise ValueError(f"{task_id}: expected_files must map paths to text contents")
 
     started = time.monotonic()
     try:
@@ -41,6 +50,7 @@ def evaluate_task(task: dict[str, Any]) -> EvaluationResult:
                 timeout=timeout,
                 check=False,
             )
+            file_failures = _check_expected_files(Path(workdir), expected_files)
         duration = time.monotonic() - started
     except subprocess.TimeoutExpired as exc:
         return EvaluationResult(
@@ -58,6 +68,9 @@ def evaluate_task(task: dict[str, Any]) -> EvaluationResult:
         failures.append(f"exit code {completed.returncode}, expected {expected_exit}")
     if expected_stdout is not None and completed.stdout != expected_stdout:
         failures.append("stdout mismatch")
+    if expected_stderr is not None and completed.stderr != expected_stderr:
+        failures.append("stderr mismatch")
+    failures.extend(file_failures)
 
     return EvaluationResult(
         task_id=task_id,
@@ -84,6 +97,22 @@ def report(results: list[EvaluationResult]) -> dict[str, Any]:
         "summary": {"total": len(results), "passed": passed, "failed": len(results) - passed},
         "results": [asdict(result) for result in results],
     }
+
+
+def _check_expected_files(workdir: Path, expected_files: dict[str, str]) -> list[str]:
+    failures: list[str] = []
+    root = workdir.resolve()
+    for relative, expected_content in expected_files.items():
+        target = (root / relative).resolve()
+        if root not in target.parents:
+            failures.append(f"unsafe expected file path: {relative}")
+            continue
+        if not target.is_file():
+            failures.append(f"missing file: {relative}")
+            continue
+        if target.read_text(encoding="utf-8") != expected_content:
+            failures.append(f"file content mismatch: {relative}")
+    return failures
 
 
 def _to_text(value: str | bytes | None) -> str:
