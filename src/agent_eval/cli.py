@@ -7,6 +7,7 @@ from pathlib import Path
 from .agent import load_agent_spec
 from .core import evaluate_file, report
 from .html_report import render_html_report
+from .junit_report import render_junit
 
 
 def main() -> int:
@@ -14,14 +15,16 @@ def main() -> int:
     parser.add_argument("task_file", type=Path)
     parser.add_argument("--output", type=Path, help="write the JSON report to this path")
     parser.add_argument("--html-output", type=Path, help="write a standalone HTML report to this path")
+    parser.add_argument("--junit-output", type=Path, help="write JUnit XML for CI systems to this path")
     parser.add_argument("--runs", type=int, default=1, help="repeat each selected task this many times")
+    parser.add_argument("--parallel", type=int, default=1, help="run up to this many task executions concurrently")
     parser.add_argument("--agent-config", type=Path, help="run prompt-based tasks through this agent command template")
     parser.add_argument("--label", help="label this benchmark report for later comparison")
     parser.add_argument("--tag", action="append", dest="tags", default=[], help="run tasks matching this tag; repeat to match any selected tag")
     args = parser.parse_args()
 
     agent = load_agent_spec(args.agent_config) if args.agent_config else None
-    results = evaluate_file(args.task_file, runs=args.runs, tags=args.tags, agent=agent)
+    results = evaluate_file(args.task_file, runs=args.runs, tags=args.tags, agent=agent, parallel=args.parallel)
     payload = report(results, agent_name=agent.name if agent else None, label=args.label)
     rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
@@ -33,7 +36,11 @@ def main() -> int:
         args.html_output.parent.mkdir(parents=True, exist_ok=True)
         args.html_output.write_text(render_html_report(payload), encoding="utf-8")
 
-    if not args.output and not args.html_output:
+    if args.junit_output:
+        args.junit_output.parent.mkdir(parents=True, exist_ok=True)
+        args.junit_output.write_text(render_junit(results), encoding="utf-8")
+
+    if not args.output and not args.html_output and not args.junit_output:
         print(rendered, end="")
 
     return 0 if payload["summary"]["failed"] == 0 else 1

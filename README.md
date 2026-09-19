@@ -75,6 +75,14 @@ agent-eval examples/tasks.json \
 
 Repeated runs add a `run_index` to each result and the report includes aggregate pass-rate and average-duration metrics for every task.
 
+Independent task executions can also run concurrently while results remain in deterministic run/task order:
+
+```bash
+agent-eval examples/tasks.json --runs 5 --parallel 4 --output results.json
+```
+
+Each execution still receives its own fresh temporary workspace.
+
 ## Agent adapter mode
 
 For prompt-driven coding agents, define a small JSON adapter that describes how the local CLI should receive the prompt. Commands are executed directly as argument lists; the evaluator does not invoke a shell.
@@ -130,6 +138,19 @@ agent-eval-compare \
 ```
 
 The comparison summarizes pass rate, average duration, and task counts. It also reports whether every input report used the same task set; comparisons across different task sets are explicitly flagged.
+
+## CI-friendly JUnit output
+
+Generate JUnit XML alongside JSON or HTML so CI systems can display benchmark failures as test results:
+
+```bash
+agent-eval examples/tasks.json \
+  --parallel 4 \
+  --output reports/results.json \
+  --junit-output reports/results.xml
+```
+
+Each task/run pair becomes a JUnit test case. Failed evaluations include the failure reason, stdout, and stderr when available.
 
 ## Docker
 
@@ -232,13 +253,15 @@ agent-evaluation-lab/
 │   ├── compare_cli.py
 │   ├── comparison.py
 │   ├── core.py
-│   └── html_report.py
+│   ├── html_report.py
+│   └── junit_report.py
 ├── tests/
 │   ├── test_agent.py
 │   ├── test_cli.py
 │   ├── test_comparison.py
 │   ├── test_core.py
-│   └── test_html_report.py
+│   ├── test_html_report.py
+│   └── test_junit_report.py
 ├── Dockerfile
 ├── pyproject.toml
 └── README.md
