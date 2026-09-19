@@ -2,6 +2,13 @@
 
 All notable changes to Agent Evaluation Lab are documented here.
 
+## [Unreleased]
+
+### Added
+
+- Credential-free end-to-end prompt-agent demo with deterministic reference and intentionally partial fixture adapters.
+- GitHub Actions demo workflow that generates JSON, HTML, and JUnit reports, verifies expected scores, compares matching benchmark fingerprints, and uploads the reports as an artifact.
+
 ## [0.6.0] - 2026-09-19
 
 First public release candidate of the project as a reusable AI-agent evaluation harness.
