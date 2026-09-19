@@ -4,6 +4,8 @@ All notable changes to Agent Evaluation Lab are documented here.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-19
+
 ### Added
 
 - Secure PyPI Trusted Publishing workflow using GitHub OIDC, release-tag/version verification, separated build/publish jobs, and a protected `pypi` environment.
@@ -12,6 +14,11 @@ All notable changes to Agent Evaluation Lab are documented here.
 - PyPI-facing package metadata including project URLs, keywords, and classifiers.
 - Credential-free end-to-end prompt-agent demo with deterministic reference and intentionally partial fixture adapters.
 - GitHub Actions demo workflow that generates JSON, HTML, and JUnit reports, verifies expected scores, compares matching benchmark fingerprints, and uploads the reports as an artifact.
+
+### Release goal
+
+- First package release intended to be published to PyPI through Trusted Publishing.
+- Runtime behavior remains compatible with v0.6.0; this release focuses on reproducible demos, distribution validation, and secure publishing infrastructure.
 
 ## [0.6.0] - 2026-09-19
 

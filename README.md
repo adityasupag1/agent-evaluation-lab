@@ -375,7 +375,7 @@ agent-evaluation-lab/
 
 ## Release notes
 
-See [CHANGELOG.md](CHANGELOG.md) for version history and [the v0.6.0 release notes](docs/releases/v0.6.0.md) for the first public release overview.
+See [CHANGELOG.md](CHANGELOG.md) for version history, [v0.7.0 release notes](docs/releases/v0.7.0.md) for the current release, and [v0.6.0 release notes](docs/releases/v0.6.0.md) for the first public release overview.
 
 ## Distribution builds
 
