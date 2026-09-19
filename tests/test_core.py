@@ -3,6 +3,7 @@ import sys
 
 import pytest
 
+from agent_eval.agent import AgentSpec
 from agent_eval.core import evaluate_file, evaluate_task, report
 
 
@@ -241,3 +242,38 @@ def test_report_includes_reliability_metrics():
     assert payload["tasks"][0]["passed"] == 1
     assert payload["tasks"][0]["failed"] == 1
     assert payload["tasks"][0]["pass_rate"] == 0.5
+
+
+def test_evaluate_file_can_run_prompt_tasks_through_agent(tmp_path):
+    task_file = tmp_path / "tasks.json"
+    task_file.write_text(json.dumps({
+        "tasks": [
+            {
+                "id": "agent-writes-file",
+                "prompt": "Write the correct answer.",
+                "expected_files": {"answer.txt": "42"},
+            }
+        ]
+    }))
+    agent = AgentSpec(
+        name="demo-writer",
+        command=(
+            sys.executable,
+            "-c",
+            "from pathlib import Path; Path('answer.txt').write_text('42')",
+            "{prompt}",
+        ),
+    )
+
+    results = evaluate_file(task_file, agent=agent)
+
+    assert len(results) == 1
+    assert results[0].passed
+
+
+def test_report_includes_benchmark_metadata():
+    result = evaluate_task({"id": "ok", "command": [sys.executable, "-c", "pass"]})
+
+    payload = report([result], agent_name="demo-agent", label="trial-1")
+
+    assert payload["benchmark"] == {"agent": "demo-agent", "label": "trial-1"}

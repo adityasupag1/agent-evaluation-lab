@@ -8,6 +8,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from .agent import AgentSpec, apply_agent
+
 
 @dataclass(frozen=True)
 class EvaluationResult:
@@ -71,7 +73,7 @@ def evaluate_task(task: dict[str, Any], *, run_index: int = 1) -> EvaluationResu
     )
 
 
-def evaluate_file(path: Path, *, runs: int = 1, tags: list[str] | None = None) -> list[EvaluationResult]:
+def evaluate_file(path: Path, *, runs: int = 1, tags: list[str] | None = None, agent: AgentSpec | None = None) -> list[EvaluationResult]:
     if isinstance(runs, bool) or not isinstance(runs, int) or runs <= 0:
         raise ValueError("runs must be a positive integer")
 
@@ -86,11 +88,12 @@ def evaluate_file(path: Path, *, runs: int = 1, tags: list[str] | None = None) -
     seen_ids: set[str] = set()
     validated_tasks: list[dict[str, Any]] = []
     for task in tasks:
-        task_id, *_ = _validate_task(task)
+        prepared = apply_agent(task, agent) if agent is not None else task
+        task_id, *_ = _validate_task(prepared)
         if task_id in seen_ids:
             raise ValueError(f"duplicate task id: {task_id}")
         seen_ids.add(task_id)
-        validated_tasks.append(task)
+        validated_tasks.append(prepared)
 
     if requested_tags:
         validated_tasks = [
@@ -108,7 +111,7 @@ def evaluate_file(path: Path, *, runs: int = 1, tags: list[str] | None = None) -
     return results
 
 
-def report(results: list[EvaluationResult]) -> dict[str, Any]:
+def report(results: list[EvaluationResult], *, agent_name: str | None = None, label: str | None = None) -> dict[str, Any]:
     passed = sum(result.passed for result in results)
     total = len(results)
     duration = sum(result.duration_seconds for result in results)
@@ -130,7 +133,7 @@ def report(results: list[EvaluationResult]) -> dict[str, Any]:
             "average_duration_seconds": task_duration / len(task_results),
         })
 
-    return {
+    payload: dict[str, Any] = {
         "summary": {"total": total, "passed": passed, "failed": total - passed},
         "metrics": {
             "pass_rate": passed / total if total else 0.0,
@@ -140,6 +143,13 @@ def report(results: list[EvaluationResult]) -> dict[str, Any]:
         "tasks": task_summaries,
         "results": [asdict(result) for result in results],
     }
+    if agent_name is not None or label is not None:
+        payload["benchmark"] = {}
+        if agent_name is not None:
+            payload["benchmark"]["agent"] = agent_name
+        if label is not None:
+            payload["benchmark"]["label"] = label
+    return payload
 
 
 def _normalize_tags(tags: list[str] | None) -> set[str]:

@@ -12,7 +12,7 @@ Agent Evaluation Lab is useful when you want repeatable agent tests without tyin
 
 AI coding agents can produce plausible-looking solutions while still failing on observable behavior. This project turns those behaviors into explicit, reproducible checks.
 
-- **Model-agnostic:** evaluate any agent or command that can be invoked from the shell.
+- **Model-agnostic:** evaluate direct commands or prompt-driven CLI agents through a small adapter.
 - **Deterministic:** define expected exit codes, stdout/stderr, files, and timeouts.
 - **Isolated per task:** every evaluation runs in a fresh temporary workspace.
 - **Portable:** run locally, in Docker, or in CI.
@@ -74,6 +74,62 @@ agent-eval examples/tasks.json \
 ```
 
 Repeated runs add a `run_index` to each result and the report includes aggregate pass-rate and average-duration metrics for every task.
+
+## Agent adapter mode
+
+For prompt-driven coding agents, define a small JSON adapter that describes how the local CLI should receive the prompt. Commands are executed directly as argument lists; the evaluator does not invoke a shell.
+
+```json
+{
+  "name": "my-coding-agent",
+  "command": ["my-agent", "--prompt", "{prompt}"]
+}
+```
+
+Prompt-based benchmark tasks can then omit `command` and provide a `prompt` instead:
+
+```json
+{
+  "tasks": [
+    {
+      "id": "write-answer",
+      "prompt": "Read question.txt and write the answer to answer.txt.",
+      "input_files": {
+        "question.txt": "What is 6 * 7?"
+      },
+      "expected_files": {
+        "answer.txt": "42"
+      }
+    }
+  ]
+}
+```
+
+Run the same benchmark through any compatible command-line agent by changing only the adapter:
+
+```bash
+agent-eval prompt_tasks.json \
+  --agent-config agents/my-agent.json \
+  --runs 3 \
+  --label my-agent-v1 \
+  --output reports/my-agent.json
+```
+
+The adapter name and optional label are stored in the JSON report so runs can be compared later. Authentication, model selection, and provider-specific flags remain the responsibility of the local agent CLI.
+
+## Compare benchmark reports
+
+Compare two or more benchmark reports without rerunning the tasks:
+
+```bash
+agent-eval-compare \
+  reports/agent-a.json \
+  reports/agent-b.json \
+  --output reports/comparison.json \
+  --html-output reports/comparison.html
+```
+
+The comparison summarizes pass rate, average duration, and task counts. It also reports whether every input report used the same task set; comparisons across different task sets are explicitly flagged.
 
 ## Docker
 
@@ -171,11 +227,16 @@ agent-evaluation-lab/
 ├── examples/tasks.json
 ├── src/agent_eval/
 │   ├── __init__.py
+│   ├── agent.py
 │   ├── cli.py
+│   ├── compare_cli.py
+│   ├── comparison.py
 │   ├── core.py
 │   └── html_report.py
 ├── tests/
+│   ├── test_agent.py
 │   ├── test_cli.py
+│   ├── test_comparison.py
 │   ├── test_core.py
 │   └── test_html_report.py
 ├── Dockerfile

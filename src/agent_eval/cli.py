@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from .agent import load_agent_spec
 from .core import evaluate_file, report
 from .html_report import render_html_report
 
@@ -14,10 +15,14 @@ def main() -> int:
     parser.add_argument("--output", type=Path, help="write the JSON report to this path")
     parser.add_argument("--html-output", type=Path, help="write a standalone HTML report to this path")
     parser.add_argument("--runs", type=int, default=1, help="repeat each selected task this many times")
+    parser.add_argument("--agent-config", type=Path, help="run prompt-based tasks through this agent command template")
+    parser.add_argument("--label", help="label this benchmark report for later comparison")
     parser.add_argument("--tag", action="append", dest="tags", default=[], help="run tasks matching this tag; repeat to match any selected tag")
     args = parser.parse_args()
 
-    payload = report(evaluate_file(args.task_file, runs=args.runs, tags=args.tags))
+    agent = load_agent_spec(args.agent_config) if args.agent_config else None
+    results = evaluate_file(args.task_file, runs=args.runs, tags=args.tags, agent=agent)
+    payload = report(results, agent_name=agent.name if agent else None, label=args.label)
     rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
     if args.output:
