@@ -32,3 +32,24 @@ def test_html_report_renders_summary_and_escapes_content():
     assert "&lt;task&gt;" in rendered
     assert "&lt;mismatch&gt;" in rendered
     assert "<task>" not in rendered
+
+
+def test_html_report_shows_and_escapes_benchmark_provenance():
+    payload = {
+        "benchmark": {
+            "name": "<suite>",
+            "version": "1.0.0",
+            "fingerprint": "sha256:" + "a" * 64,
+        },
+        "summary": {"total": 0, "passed": 0, "failed": 0},
+        "metrics": {"pass_rate": 0.0},
+        "tasks": [],
+        "results": [],
+    }
+
+    rendered = render_html_report(payload)
+
+    assert "&lt;suite&gt;" in rendered
+    assert "1.0.0" in rendered
+    assert "sha256:" + "a" * 64 in rendered
+    assert "<suite>" not in rendered
