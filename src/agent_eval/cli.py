@@ -8,6 +8,7 @@ from .agent import load_agent_spec
 from .core import evaluate_file, report
 from .html_report import render_html_report
 from .junit_report import render_junit
+from .validation import validate_benchmark_file
 
 
 def main() -> int:
@@ -23,9 +24,19 @@ def main() -> int:
     parser.add_argument("--tag", action="append", dest="tags", default=[], help="run tasks matching this tag; repeat to match any selected tag")
     args = parser.parse_args()
 
+    validation = validate_benchmark_file(args.task_file)
+    provenance = validation["benchmark"]
     agent = load_agent_spec(args.agent_config) if args.agent_config else None
     results = evaluate_file(args.task_file, runs=args.runs, tags=args.tags, agent=agent, parallel=args.parallel)
-    payload = report(results, agent_name=agent.name if agent else None, label=args.label)
+    payload = report(
+        results,
+        agent_name=agent.name if agent else None,
+        label=args.label,
+        suite_name=provenance.get("name"),
+        suite_version=provenance.get("version"),
+        suite_description=provenance.get("description"),
+        fingerprint=provenance["fingerprint"],
+    )
     rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
     if args.output:
