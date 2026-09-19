@@ -59,7 +59,7 @@ def test_cli_supports_repeated_runs_tags_and_html_output(tmp_path):
                 "id": "selected",
                 "tags": ["smoke"],
                 "command": [sys.executable, "-c", "print('ok')"],
-                "expected_stdout": "ok\\n",
+                "expected_stdout": "ok\n",
             },
             {
                 "id": "other",
