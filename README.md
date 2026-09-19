@@ -314,7 +314,9 @@ agent-evaluation-lab/
 │   ├── comparison.py
 │   ├── core.py
 │   ├── html_report.py
-│   └── junit_report.py
+│   ├── junit_report.py
+│   ├── validate_cli.py
+│   └── validation.py
 ├── tests/
 │   ├── test_agent.py
 │   ├── test_cli.py
