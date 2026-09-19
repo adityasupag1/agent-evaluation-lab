@@ -87,3 +87,32 @@ def test_report_summary():
     bad = evaluate_task({"id": "bad", "command": [sys.executable, "-c", "raise SystemExit(2)"]})
     payload = report([good, bad])
     assert payload["summary"] == {"total": 2, "passed": 1, "failed": 1}
+
+
+def test_input_files_are_available_to_command():
+    result = evaluate_task({
+        "id": "fixture",
+        "input_files": {"data/input.txt": "hello"},
+        "command": [sys.executable, "-c", "from pathlib import Path; print(Path('data/input.txt').read_text().upper())"],
+        "expected_stdout": "HELLO\n",
+    })
+    assert result.passed
+
+
+def test_input_files_can_drive_output_file_assertions():
+    result = evaluate_task({
+        "id": "transform",
+        "input_files": {"input.txt": "abc"},
+        "command": [sys.executable, "-c", "from pathlib import Path; Path('output.txt').write_text(Path('input.txt').read_text()[::-1])"],
+        "expected_files": {"output.txt": "cba"},
+    })
+    assert result.passed
+
+
+def test_unsafe_input_file_path_is_rejected():
+    with pytest.raises(ValueError, match="unsafe file path"):
+        evaluate_task({
+            "id": "unsafe-fixture",
+            "input_files": {"../outside.txt": "nope"},
+            "command": [sys.executable, "-c", "pass"],
+        })

@@ -21,11 +21,12 @@ class EvaluationResult:
 
 
 def evaluate_task(task: dict[str, Any]) -> EvaluationResult:
-    task_id, command, timeout, expected_exit, expected_stdout, expected_stderr, expected_files = _validate_task(task)
+    task_id, command, timeout, expected_exit, expected_stdout, expected_stderr, expected_files, input_files = _validate_task(task)
 
     started = time.monotonic()
     try:
         with tempfile.TemporaryDirectory(prefix="agent-eval-") as workdir:
+            _write_input_files(Path(workdir), input_files)
             completed = subprocess.run(
                 command,
                 cwd=workdir,
@@ -85,7 +86,7 @@ def report(results: list[EvaluationResult]) -> dict[str, Any]:
     }
 
 
-def _validate_task(task: dict[str, Any]) -> tuple[str, list[str], float, int, str | None, str | None, dict[str, str]]:
+def _validate_task(task: dict[str, Any]) -> tuple[str, list[str], float, int, str | None, str | None, dict[str, str], dict[str, str]]:
     if not isinstance(task, dict):
         raise ValueError("each task must be a JSON object")
     if "id" not in task or not isinstance(task["id"], str) or not task["id"].strip():
@@ -114,6 +115,13 @@ def _validate_task(task: dict[str, Any]) -> tuple[str, list[str], float, int, st
     if expected_stderr is not None and not isinstance(expected_stderr, str):
         raise ValueError(f"{task_id}: expected_stderr must be a string")
 
+    input_files = task.get("input_files", {})
+    if not isinstance(input_files, dict) or not all(
+        isinstance(path, str) and path and isinstance(content, str)
+        for path, content in input_files.items()
+    ):
+        raise ValueError(f"{task_id}: input_files must map non-empty paths to text contents")
+
     expected_files = task.get("expected_files", {})
     if not isinstance(expected_files, dict) or not all(
         isinstance(path, str) and path and isinstance(content, str)
@@ -121,15 +129,31 @@ def _validate_task(task: dict[str, Any]) -> tuple[str, list[str], float, int, st
     ):
         raise ValueError(f"{task_id}: expected_files must map non-empty paths to text contents")
 
-    return task_id, command, timeout, exit_raw, expected_stdout, expected_stderr, expected_files
+    return task_id, command, timeout, exit_raw, expected_stdout, expected_stderr, expected_files, input_files
+
+
+def _safe_target(root: Path, relative: str) -> Path:
+    target = (root / relative).resolve()
+    if root == target or root not in target.parents:
+        raise ValueError(f"unsafe file path: {relative}")
+    return target
+
+
+def _write_input_files(workdir: Path, input_files: dict[str, str]) -> None:
+    root = workdir.resolve()
+    for relative, content in input_files.items():
+        target = _safe_target(root, relative)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
 
 
 def _check_expected_files(workdir: Path, expected_files: dict[str, str]) -> list[str]:
     failures: list[str] = []
     root = workdir.resolve()
     for relative, expected_content in expected_files.items():
-        target = (root / relative).resolve()
-        if root not in target.parents:
+        try:
+            target = _safe_target(root, relative)
+        except ValueError:
             failures.append(f"unsafe expected file path: {relative}")
             continue
         if not target.is_file():
