@@ -145,7 +145,7 @@ agent-eval-compare \
   --html-output reports/comparison.html
 ```
 
-The comparison summarizes pass rate, average duration, and task counts. It also reports whether every input report used the same task set; comparisons across different task sets are explicitly flagged.
+The comparison summarizes pass rate, average duration, and task counts. Reports produced by current versions also carry a SHA-256 benchmark fingerprint, so the comparison can distinguish a genuinely identical benchmark definition from two suites that merely reuse the same task IDs. Older reports without provenance remain readable and are marked as having unavailable fingerprint coverage.
 
 ## CI-friendly JUnit output
 
@@ -218,8 +218,13 @@ docker run --rm agent-evaluation-lab
 
 ## Task format
 
+A benchmark can include optional suite metadata. The metadata is recorded in reports, while the reproducibility fingerprint is computed from the task definitions themselves.
+
 ```json
 {
+  "name": "coding-smoke",
+  "version": "1.0.0",
+  "description": "Small deterministic coding-agent benchmark.",
   "tasks": [
     {
       "id": "write-answer",
@@ -246,12 +251,23 @@ docker run --rm agent-evaluation-lab
 
 Each task runs in a fresh temporary directory. `input_files` are materialized before the command starts, nested directories are created automatically, and paths that escape the task workspace are rejected. Optional `tags` support benchmark filtering without changing task behavior. Checks target externally visible behavior rather than source-code structure or implementation-specific names.
 
+## Benchmark provenance
+
+Before execution, the CLI validates the benchmark and computes a canonical SHA-256 fingerprint from the complete `tasks` array. JSON key order and formatting do not change the fingerprint, while any change to a task definition does.
+
+This makes comparison safer: two reports can have the same task IDs but still be flagged when the underlying benchmark definitions differ. Human-facing metadata such as the suite description is stored separately and does not change the task fingerprint.
+
 ## Report format
 
-JSON reports keep the original pass/fail summary and add benchmark-level metrics plus per-task reliability statistics:
+JSON reports keep the original pass/fail summary, provenance, benchmark-level metrics, and per-task reliability statistics:
 
 ```json
 {
+  "benchmark": {
+    "name": "coding-smoke",
+    "version": "1.0.0",
+    "fingerprint": "sha256:..."
+  },
   "summary": {
     "total": 3,
     "passed": 3,
@@ -290,6 +306,8 @@ JSON reports keep the original pass/fail summary and add benchmark-level metrics
 ## Design decisions
 
 **Deterministic checks.** Assertions compare explicit observable outputs, making failures straightforward to reproduce.
+
+**Reproducible provenance.** Reports carry canonical task fingerprints so cross-run and cross-agent comparisons can verify that the underlying benchmark definition is unchanged.
 
 **Workspace isolation.** Every command receives its own temporary working directory so tasks do not accidentally share state. This is filesystem workspace separation, not an OS-level security sandbox.
 
