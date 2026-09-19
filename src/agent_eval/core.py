@@ -26,7 +26,8 @@ def evaluate_task(task: dict[str, Any]) -> EvaluationResult:
     started = time.monotonic()
     try:
         with tempfile.TemporaryDirectory(prefix="agent-eval-") as workdir:
-            _write_input_files(Path(workdir), input_files)\n            completed = subprocess.run(
+            _write_input_files(Path(workdir), input_files)
+            completed = subprocess.run(
                 command,
                 cwd=workdir,
                 text=True,
@@ -150,8 +151,9 @@ def _check_expected_files(workdir: Path, expected_files: dict[str, str]) -> list
     failures: list[str] = []
     root = workdir.resolve()
     for relative, expected_content in expected_files.items():
-        target = (root / relative).resolve()
-        if root not in target.parents:
+        try:
+            target = _safe_target(root, relative)
+        except ValueError:
             failures.append(f"unsafe expected file path: {relative}")
             continue
         if not target.is_file():
