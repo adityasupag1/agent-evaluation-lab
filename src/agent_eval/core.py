@@ -21,7 +21,7 @@ class EvaluationResult:
 
 
 def evaluate_task(task: dict[str, Any]) -> EvaluationResult:
-    task_id, command, timeout, expected_exit, expected_stdout, expected_stderr, expected_files = _validate_task(task)
+    task_id, command, timeout, expected_exit, expected_stdout, expected_stderr, expected_files, input_files = _validate_task(task)
 
     started = time.monotonic()
     try:
@@ -85,7 +85,7 @@ def report(results: list[EvaluationResult]) -> dict[str, Any]:
     }
 
 
-def _validate_task(task: dict[str, Any]) -> tuple[str, list[str], float, int, str | None, str | None, dict[str, str]]:
+def _validate_task(task: dict[str, Any]) -> tuple[str, list[str], float, int, str | None, str | None, dict[str, str], dict[str, str]]:
     if not isinstance(task, dict):
         raise ValueError("each task must be a JSON object")
     if "id" not in task or not isinstance(task["id"], str) or not task["id"].strip():
@@ -114,14 +114,14 @@ def _validate_task(task: dict[str, Any]) -> tuple[str, list[str], float, int, st
     if expected_stderr is not None and not isinstance(expected_stderr, str):
         raise ValueError(f"{task_id}: expected_stderr must be a string")
 
-    expected_files = task.get("expected_files", {})
+    input_files = task.get("input_files", {})\n    if not isinstance(input_files, dict) or not all(\n        isinstance(path, str) and path and isinstance(content, str)\n        for path, content in input_files.items()\n    ):\n        raise ValueError(f"{task_id}: input_files must map non-empty paths to text contents")\n\n    expected_files = task.get("expected_files", {})
     if not isinstance(expected_files, dict) or not all(
         isinstance(path, str) and path and isinstance(content, str)
         for path, content in expected_files.items()
     ):
         raise ValueError(f"{task_id}: expected_files must map non-empty paths to text contents")
 
-    return task_id, command, timeout, exit_raw, expected_stdout, expected_stderr, expected_files
+    return task_id, command, timeout, exit_raw, expected_stdout, expected_stderr, expected_files, input_files
 
 
 def _check_expected_files(workdir: Path, expected_files: dict[str, str]) -> list[str]:
