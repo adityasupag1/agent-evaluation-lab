@@ -1,6 +1,9 @@
 # Agent Evaluation Lab
 
 [![CI](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/ci.yml)
+[![Demo](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/demo.yml/badge.svg)](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/demo.yml)
+[![Package](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/package.yml/badge.svg)](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/package.yml)
+[![Release](https://img.shields.io/github/v/release/adityasupag1/agent-evaluation-lab)](https://github.com/adityasupag1/agent-evaluation-lab/releases/latest)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -334,6 +337,7 @@ JSON reports keep the original pass/fail summary, provenance, benchmark-level me
 agent-evaluation-lab/
 ├── .github/workflows/ci.yml
 ├── .github/workflows/demo.yml
+├── .github/workflows/package.yml
 ├── action.yml
 ├── docs/benchmark.schema.json
 ├── docs/demo.md
@@ -370,6 +374,12 @@ agent-evaluation-lab/
 ## Release notes
 
 See [CHANGELOG.md](CHANGELOG.md) for version history and [the v0.6.0 release notes](docs/releases/v0.6.0.md) for the first public release overview.
+
+## Distribution builds
+
+The [Package workflow](.github/workflows/package.yml) builds both wheel and source distributions, validates their metadata with Twine, installs the wheel in a clean virtual environment, smoke-tests all three CLI entry points, and uploads the resulting `dist/` files as a workflow artifact.
+
+This verifies package readiness without storing publishing credentials in the repository. The project is not claiming a PyPI publication until an actual PyPI release exists.
 
 ## Development
 
