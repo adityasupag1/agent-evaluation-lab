@@ -18,4 +18,26 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: pip install -e ".[dev]"
+      - run: agent-eval-validate examples/starter-benchmark.json
       - run: pytest -q
+
+  action-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run starter benchmark through local action
+        uses: ./
+        with:
+          task-file: examples/starter-benchmark.json
+          runs: "2"
+          parallel: "2"
+          label: action-smoke
+          json-report: agent-eval-results/results.json
+          html-report: agent-eval-results/results.html
+          junit-report: agent-eval-results/results.xml
+      - name: Verify generated reports
+        run: |
+          test -s agent-eval-results/results.json
+          test -s agent-eval-results/results.html
+          test -s agent-eval-results/results.xml
+          python -c "import json; p=json.load(open('agent-eval-results/results.json')); assert p['summary']=={'total': 10, 'passed': 10, 'failed': 0}"
