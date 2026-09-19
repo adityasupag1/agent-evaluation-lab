@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
@@ -9,6 +10,11 @@ def validate_benchmark_file(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("input must be a JSON object")
+
+    for field in ("name", "version", "description"):
+        value = payload.get(field)
+        if value is not None and (not isinstance(value, str) or not value.strip()):
+            raise ValueError(f"benchmark {field} must be a non-empty string")
 
     tasks = payload.get("tasks")
     if not isinstance(tasks, list):
@@ -73,10 +79,19 @@ def validate_benchmark_file(path: Path) -> dict[str, Any]:
                 if not _is_safe_relative_path(relative):
                     raise ValueError(f"{task_id}: unsafe {field} path: {relative}")
 
+    benchmark: dict[str, Any] = {
+        "fingerprint": _benchmark_fingerprint(tasks),
+    }
+    for field in ("name", "version", "description"):
+        value = payload.get(field)
+        if isinstance(value, str):
+            benchmark[field] = value.strip()
+
     return {
         "valid": True,
         "task_count": len(tasks),
         "task_ids": [task["id"] for task in tasks],
+        "benchmark": benchmark,
     }
 
 
@@ -100,3 +115,13 @@ def _is_safe_relative_path(value: str) -> bool:
             return False
 
     return True
+
+
+def _benchmark_fingerprint(tasks: list[Any]) -> str:
+    canonical = json.dumps(
+        {"tasks": tasks},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
