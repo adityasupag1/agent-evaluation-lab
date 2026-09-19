@@ -82,6 +82,28 @@ def test_evaluate_file_rejects_missing_tasks(tmp_path):
         evaluate_file(path)
 
 
+def test_evaluate_file_rejects_duplicate_task_ids_before_execution(tmp_path):
+    marker_file = tmp_path / "executed.txt"
+    path = tmp_path / "tasks.json"
+    path.write_text(json.dumps({
+        "tasks": [
+            {
+                "id": "duplicate",
+                "command": [sys.executable, "-c", f"from pathlib import Path; Path({str(marker_file)!r}).write_text('ran')"],
+            },
+            {
+                "id": "duplicate",
+                "command": [sys.executable, "-c", "pass"],
+            },
+        ]
+    }))
+
+    with pytest.raises(ValueError, match="duplicate task id: duplicate"):
+        evaluate_file(path)
+
+    assert not marker_file.exists()
+
+
 def test_report_summary():
     good = evaluate_task({"id": "good", "command": [sys.executable, "-c", "print('x')"]})
     bad = evaluate_task({"id": "bad", "command": [sys.executable, "-c", "raise SystemExit(2)"]})
