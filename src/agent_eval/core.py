@@ -114,7 +114,14 @@ def _validate_task(task: dict[str, Any]) -> tuple[str, list[str], float, int, st
     if expected_stderr is not None and not isinstance(expected_stderr, str):
         raise ValueError(f"{task_id}: expected_stderr must be a string")
 
-    input_files = task.get("input_files", {})\n    if not isinstance(input_files, dict) or not all(\n        isinstance(path, str) and path and isinstance(content, str)\n        for path, content in input_files.items()\n    ):\n        raise ValueError(f"{task_id}: input_files must map non-empty paths to text contents")\n\n    expected_files = task.get("expected_files", {})
+    input_files = task.get("input_files", {})
+    if not isinstance(input_files, dict) or not all(
+        isinstance(path, str) and path and isinstance(content, str)
+        for path, content in input_files.items()
+    ):
+        raise ValueError(f"{task_id}: input_files must map non-empty paths to text contents")
+
+    expected_files = task.get("expected_files", {})
     if not isinstance(expected_files, dict) or not all(
         isinstance(path, str) and path and isinstance(content, str)
         for path, content in expected_files.items()
