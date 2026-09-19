@@ -1,9 +1,20 @@
 {
+  "name": "starter-benchmark",
+  "version": "1.0.0",
+  "description": "Deterministic smoke benchmark covering core Agent Evaluation Lab assertions.",
   "tasks": [
     {
       "id": "stdout-arithmetic",
-      "tags": ["python", "stdout", "smoke"],
-      "command": ["python", "-c", "print(6 * 7)"],
+      "tags": [
+        "python",
+        "stdout",
+        "smoke"
+      ],
+      "command": [
+        "python",
+        "-c",
+        "print(6 * 7)"
+      ],
       "expected_exit_code": 0,
       "expected_stdout": "42\n",
       "expected_stderr": "",
@@ -11,7 +22,10 @@
     },
     {
       "id": "fixture-transform",
-      "tags": ["python", "filesystem"],
+      "tags": [
+        "python",
+        "filesystem"
+      ],
       "input_files": {
         "data/input.txt": "agent evaluation"
       },
@@ -30,7 +44,10 @@
     },
     {
       "id": "stderr-contract",
-      "tags": ["python", "stderr"],
+      "tags": [
+        "python",
+        "stderr"
+      ],
       "command": [
         "python",
         "-c",
@@ -43,8 +60,15 @@
     },
     {
       "id": "expected-nonzero-exit",
-      "tags": ["python", "exit-code"],
-      "command": ["python", "-c", "raise SystemExit(3)"],
+      "tags": [
+        "python",
+        "exit-code"
+      ],
+      "command": [
+        "python",
+        "-c",
+        "raise SystemExit(3)"
+      ],
       "expected_exit_code": 3,
       "expected_stdout": "",
       "expected_stderr": "",
@@ -52,7 +76,11 @@
     },
     {
       "id": "nested-artifact",
-      "tags": ["python", "filesystem", "smoke"],
+      "tags": [
+        "python",
+        "filesystem",
+        "smoke"
+      ],
       "command": [
         "python",
         "-c",

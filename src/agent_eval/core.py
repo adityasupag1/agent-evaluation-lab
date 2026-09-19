@@ -131,7 +131,16 @@ def evaluate_file(path: Path, *, runs: int = 1, tags: list[str] | None = None, a
     return [completed_results[index] for index in range(len(jobs))]
 
 
-def report(results: list[EvaluationResult], *, agent_name: str | None = None, label: str | None = None) -> dict[str, Any]:
+def report(
+    results: list[EvaluationResult],
+    *,
+    agent_name: str | None = None,
+    label: str | None = None,
+    suite_name: str | None = None,
+    suite_version: str | None = None,
+    suite_description: str | None = None,
+    fingerprint: str | None = None,
+) -> dict[str, Any]:
     passed = sum(result.passed for result in results)
     total = len(results)
     duration = sum(result.duration_seconds for result in results)
@@ -163,12 +172,30 @@ def report(results: list[EvaluationResult], *, agent_name: str | None = None, la
         "tasks": task_summaries,
         "results": [asdict(result) for result in results],
     }
-    if agent_name is not None or label is not None:
+    if any(
+        value is not None
+        for value in (
+            agent_name,
+            label,
+            suite_name,
+            suite_version,
+            suite_description,
+            fingerprint,
+        )
+    ):
         payload["benchmark"] = {}
         if agent_name is not None:
             payload["benchmark"]["agent"] = agent_name
         if label is not None:
             payload["benchmark"]["label"] = label
+        if suite_name is not None:
+            payload["benchmark"]["name"] = suite_name
+        if suite_version is not None:
+            payload["benchmark"]["version"] = suite_version
+        if suite_description is not None:
+            payload["benchmark"]["description"] = suite_description
+        if fingerprint is not None:
+            payload["benchmark"]["fingerprint"] = fingerprint
     return payload
 
 

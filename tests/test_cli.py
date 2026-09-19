@@ -141,7 +141,9 @@ def test_cli_runs_prompt_task_with_agent_config_and_label(tmp_path):
 
     assert completed.returncode == 0
     payload = json.loads(report_file.read_text())
-    assert payload["benchmark"] == {"agent": "demo-agent", "label": "demo-run"}
+    assert payload["benchmark"]["agent"] == "demo-agent"
+    assert payload["benchmark"]["label"] == "demo-run"
+    assert payload["benchmark"]["fingerprint"].startswith("sha256:")
     assert payload["summary"] == {"total": 1, "passed": 1, "failed": 0}
 
 
@@ -275,8 +277,43 @@ def test_validate_cli_writes_metadata_without_executing_tasks(tmp_path):
     assert completed.returncode == 0
     assert not marker.exists()
     payload = json.loads(validation_file.read_text())
-    assert payload == {
-        "valid": True,
-        "task_count": 1,
-        "task_ids": ["validate-only"],
-    }
+    assert payload["valid"] is True
+    assert payload["task_count"] == 1
+    assert payload["task_ids"] == ["validate-only"]
+    assert payload["benchmark"]["fingerprint"].startswith("sha256:")
+
+
+def test_cli_records_suite_provenance(tmp_path):
+    task_file = tmp_path / "suite.json"
+    report_file = tmp_path / "result.json"
+    task_file.write_text(json.dumps({
+        "name": "provenance-suite",
+        "version": "1.2.3",
+        "description": "Suite metadata should survive into the report.",
+        "tasks": [{
+            "id": "ok",
+            "command": [sys.executable, "-c", "print('ok')"],
+            "expected_stdout": "ok\n",
+        }],
+    }))
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "agent_eval.cli",
+            str(task_file),
+            "--output",
+            str(report_file),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0
+    payload = json.loads(report_file.read_text())
+    assert payload["benchmark"]["name"] == "provenance-suite"
+    assert payload["benchmark"]["version"] == "1.2.3"
+    assert payload["benchmark"]["description"] == "Suite metadata should survive into the report."
+    assert payload["benchmark"]["fingerprint"].startswith("sha256:")

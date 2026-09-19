@@ -8,6 +8,10 @@ def render_html_report(payload: dict[str, Any]) -> str:
     summary = payload["summary"]
     metrics = payload.get("metrics", {})
     pass_rate = float(metrics.get("pass_rate", 0.0)) * 100
+    benchmark = payload.get("benchmark") if isinstance(payload.get("benchmark"), dict) else {}
+    benchmark_name = escape(str(benchmark.get("name") or "Unnamed benchmark"))
+    benchmark_version = escape(str(benchmark.get("version") or "—"))
+    benchmark_fingerprint = escape(str(benchmark.get("fingerprint") or "unavailable"))
 
     rows = []
     for task in payload.get("tasks", []):
@@ -55,6 +59,7 @@ def render_html_report(payload: dict[str, Any]) -> str:
 </head>
 <body>
   <h1>Agent Evaluation Report</h1>
+  <p><strong>Benchmark:</strong> {benchmark_name} &nbsp; <strong>Version:</strong> {benchmark_version}<br><strong>Fingerprint:</strong> <code>{benchmark_fingerprint}</code></p>
   <div class="cards">
     <div class="card"><strong>Total runs</strong><br>{summary['total']}</div>
     <div class="card"><strong>Passed</strong><br>{summary['passed']}</div>
