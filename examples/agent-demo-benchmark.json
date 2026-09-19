@@ -1,0 +1,64 @@
+{
+  "name": "agent-adapter-demo",
+  "version": "1.0.0",
+  "description": "Deterministic prompt-agent demo used to exercise adapter, reporting, and comparison workflows.",
+  "tasks": [
+    {
+      "id": "stdout-answer",
+      "tags": ["demo", "stdout"],
+      "prompt": "stdout-answer",
+      "expected_exit_code": 0,
+      "expected_stdout": "42\n",
+      "expected_stderr": "",
+      "timeout_seconds": 5
+    },
+    {
+      "id": "write-answer-file",
+      "tags": ["demo", "filesystem"],
+      "prompt": "write-answer-file",
+      "expected_exit_code": 0,
+      "expected_stdout": "",
+      "expected_stderr": "",
+      "expected_files": {
+        "answer.txt": "42"
+      },
+      "timeout_seconds": 5
+    },
+    {
+      "id": "uppercase-fixture",
+      "tags": ["demo", "filesystem"],
+      "prompt": "uppercase-fixture",
+      "input_files": {
+        "data/input.txt": "agent evaluation"
+      },
+      "expected_exit_code": 0,
+      "expected_stdout": "",
+      "expected_stderr": "",
+      "expected_files": {
+        "output.txt": "AGENT EVALUATION"
+      },
+      "timeout_seconds": 5
+    },
+    {
+      "id": "nested-artifact",
+      "tags": ["demo", "filesystem"],
+      "prompt": "nested-artifact",
+      "expected_exit_code": 0,
+      "expected_stdout": "",
+      "expected_stderr": "",
+      "expected_files": {
+        "reports/result.txt": "ready"
+      },
+      "timeout_seconds": 5
+    },
+    {
+      "id": "stderr-diagnostic",
+      "tags": ["demo", "stderr"],
+      "prompt": "stderr-diagnostic",
+      "expected_exit_code": 0,
+      "expected_stdout": "",
+      "expected_stderr": "diagnostic\n",
+      "timeout_seconds": 5
+    }
+  ]
+}

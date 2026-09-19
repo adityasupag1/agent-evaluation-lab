@@ -1,0 +1,93 @@
+name: End-to-end demo
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e ".[dev]"
+
+      - name: Validate demo benchmark
+        run: agent-eval-validate examples/agent-demo-benchmark.json
+
+      - name: Run reference demo agent
+        run: |
+          agent-eval examples/agent-demo-benchmark.json \
+            --agent-config examples/agents/demo-reference.json \
+            --label demo-reference \
+            --output demo-results/reference.json \
+            --html-output demo-results/reference.html \
+            --junit-output demo-results/reference.xml
+
+      - name: Run intentionally partial demo agent
+        run: |
+          set +e
+          agent-eval examples/agent-demo-benchmark.json \
+            --agent-config examples/agents/demo-partial.json \
+            --label demo-partial \
+            --output demo-results/partial.json \
+            --html-output demo-results/partial.html \
+            --junit-output demo-results/partial.xml
+          status=$?
+          set -e
+          test "$status" -eq 1
+
+      - name: Verify deterministic demo scores
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          reference = json.loads(Path("demo-results/reference.json").read_text())
+          partial = json.loads(Path("demo-results/partial.json").read_text())
+
+          assert reference["summary"] == {"total": 5, "passed": 5, "failed": 0}
+          assert partial["summary"] == {"total": 5, "passed": 3, "failed": 2}
+          assert reference["benchmark"]["fingerprint"] == partial["benchmark"]["fingerprint"]
+          PY
+
+      - name: Compare demo reports
+        run: |
+          agent-eval-compare \
+            demo-results/reference.json \
+            demo-results/partial.json \
+            --output demo-results/comparison.json \
+            --html-output demo-results/comparison.html
+
+      - name: Publish demo summary
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          comparison = json.loads(Path("demo-results/comparison.json").read_text())
+          print("## Agent Evaluation Lab deterministic demo")
+          print()
+          print("> These are fixture-agent scores used to demonstrate the pipeline; they are not real LLM benchmark results.")
+          print()
+          print("| Adapter | Passed | Pass rate |")
+          print("| --- | ---: | ---: |")
+          for item in comparison["reports"]:
+              print(f"| {item['label']} | {item['passed']}/{item['total']} | {item['pass_rate'] * 100:.0f}% |")
+          print()
+          print(f"Benchmark fingerprint match: **{comparison['comparison']['same_benchmark']}**")
+          PY
+
+      - name: Upload demo reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-evaluation-demo-reports
+          path: demo-results/

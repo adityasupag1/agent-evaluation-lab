@@ -1,0 +1,12 @@
+{
+  "name": "demo-reference",
+  "command": [
+    "python",
+    "-m",
+    "agent_eval.demo_agent",
+    "--profile",
+    "reference",
+    "--prompt",
+    "{prompt}"
+  ]
+}
