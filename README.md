@@ -128,6 +128,12 @@ pytest -q
 
 CI runs the same test suite against all supported Python versions.
 
+## Troubleshooting
+
+- If `agent-eval` is not found after installation, try `python -m agent_eval.cli` or reinstall the project with `python -m pip install -e ".[dev]"`.
+- If a task fails unexpectedly, validate the task JSON and confirm that `command`, expected streams, and file paths match the documented task format.
+- For Docker-related issues, make sure Docker is running and rebuild the image after dependency or source changes.
+
 ## Scope
 
 This repository is intentionally a small evaluation harness, not a security sandbox. Commands supplied in task files are trusted input and execute with the permissions of the process running the evaluator. Docker can be used to add an external isolation boundary when evaluating untrusted workloads.
