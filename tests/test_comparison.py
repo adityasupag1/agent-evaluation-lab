@@ -83,7 +83,7 @@ def test_compare_reports_requires_unique_labels(tmp_path):
 
 def test_render_comparison_html_escapes_labels():
     payload = {
-        "comparison": {"report_count": 2, "same_task_set": True, "common_task_count": 1},
+        "comparison": {"report_count": 2, "same_task_set": True, "common_task_count": 1, "same_benchmark": None, "fingerprint_coverage": 0},
         "reports": [
             {
                 "label": "<Agent>",
