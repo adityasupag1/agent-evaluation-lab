@@ -17,7 +17,7 @@ All notable changes to Agent Evaluation Lab are documented here.
 
 ### Release goal
 
-- First package release intended to be published to PyPI through Trusted Publishing.
+- First package release successfully published to PyPI through Trusted Publishing.
 - Runtime behavior remains compatible with v0.6.0; this release focuses on reproducible demos, distribution validation, and secure publishing infrastructure.
 
 ## [0.6.0] - 2026-09-19
