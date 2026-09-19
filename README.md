@@ -4,6 +4,7 @@
 [![Demo](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/demo.yml/badge.svg)](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/demo.yml)
 [![Package](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/package.yml/badge.svg)](https://github.com/adityasupag1/agent-evaluation-lab/actions/workflows/package.yml)
 [![Release](https://img.shields.io/github/v/release/adityasupag1/agent-evaluation-lab)](https://github.com/adityasupag1/agent-evaluation-lab/releases/latest)
+[![PyPI](https://img.shields.io/pypi/v/agent-evaluation-lab)](https://pypi.org/project/agent-evaluation-lab/)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -55,6 +56,15 @@ Both adapters run against the exact same fingerprinted benchmark definition, the
 See [docs/demo.md](docs/demo.md) for the commands and [the demo workflow](.github/workflows/demo.yml) for the CI implementation.
 
 ## Quick start
+
+Install the published package from PyPI:
+
+```bash
+python -m pip install agent-evaluation-lab
+agent-eval --help
+```
+
+For repository development:
 
 ```bash
 git clone https://github.com/adityasupag1/agent-evaluation-lab.git
@@ -383,7 +393,7 @@ The [Package workflow](.github/workflows/package.yml) builds both wheel and sour
 
 The repository also contains a dedicated [PyPI release workflow](.github/workflows/release.yml) that uses GitHub OIDC Trusted Publishing instead of a long-lived API token. It verifies that the GitHub release tag matches the package version, builds distributions in a separate job, and grants `id-token: write` only to the final publish job.
 
-PyPI account-side Trusted Publisher configuration is a one-time setup. See [docs/pypi-publishing.md](docs/pypi-publishing.md) for the exact publisher values and release procedure. The project does not claim PyPI availability until the first trusted publish succeeds.
+PyPI Trusted Publishing is active and v0.7.0 was published through GitHub OIDC without a long-lived API token. See [docs/pypi-publishing.md](docs/pypi-publishing.md) for the release procedure.
 
 ## Development
 
