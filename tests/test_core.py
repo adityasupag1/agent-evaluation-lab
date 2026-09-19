@@ -168,3 +168,76 @@ def test_timeout_is_reported():
     assert not result.passed
     assert result.exit_code is None
     assert result.reason == "timeout after 0.05s"
+
+
+def test_evaluate_file_repeats_selected_tasks_and_tracks_run_index(tmp_path):
+    path = tmp_path / "tasks.json"
+    path.write_text(json.dumps({
+        "tasks": [
+            {
+                "id": "python-task",
+                "tags": ["python", "smoke"],
+                "command": [sys.executable, "-c", "print('ok')"],
+                "expected_stdout": "ok\n",
+            },
+            {
+                "id": "docker-task",
+                "tags": ["docker"],
+                "command": [sys.executable, "-c", "print('skip')"],
+            },
+        ]
+    }))
+
+    results = evaluate_file(path, runs=3, tags=["python"])
+
+    assert [result.task_id for result in results] == ["python-task"] * 3
+    assert [result.run_index for result in results] == [1, 2, 3]
+    assert all(result.passed for result in results)
+
+
+@pytest.mark.parametrize("runs", [0, -1, True, 1.5])
+def test_invalid_run_count_is_rejected(tmp_path, runs):
+    path = tmp_path / "tasks.json"
+    path.write_text(json.dumps({"tasks": []}))
+
+    with pytest.raises(ValueError, match="runs"):
+        evaluate_file(path, runs=runs)
+
+
+def test_invalid_task_tags_are_rejected_before_execution(tmp_path):
+    marker_file = tmp_path / "executed.txt"
+    path = tmp_path / "tasks.json"
+    path.write_text(json.dumps({
+        "tasks": [
+            {
+                "id": "first",
+                "command": [sys.executable, "-c", f"from pathlib import Path; Path({str(marker_file)!r}).write_text('ran')"],
+            },
+            {
+                "id": "bad-tags",
+                "tags": "python",
+                "command": [sys.executable, "-c", "pass"],
+            },
+        ]
+    }))
+
+    with pytest.raises(ValueError, match="tags"):
+        evaluate_file(path)
+
+    assert not marker_file.exists()
+
+
+def test_report_includes_reliability_metrics():
+    results = [
+        evaluate_task({"id": "same", "command": [sys.executable, "-c", "pass"]}, run_index=1),
+        evaluate_task({"id": "same", "command": [sys.executable, "-c", "raise SystemExit(1)"]}, run_index=2),
+    ]
+
+    payload = report(results)
+
+    assert payload["metrics"]["pass_rate"] == 0.5
+    assert payload["tasks"][0]["task_id"] == "same"
+    assert payload["tasks"][0]["runs"] == 2
+    assert payload["tasks"][0]["passed"] == 1
+    assert payload["tasks"][0]["failed"] == 1
+    assert payload["tasks"][0]["pass_rate"] == 0.5

@@ -18,9 +18,10 @@ class EvaluationResult:
     stderr: str
     duration_seconds: float
     reason: str | None = None
+    run_index: int = 1
 
 
-def evaluate_task(task: dict[str, Any]) -> EvaluationResult:
+def evaluate_task(task: dict[str, Any], *, run_index: int = 1) -> EvaluationResult:
     task_id, command, timeout, expected_exit, expected_stdout, expected_stderr, expected_files, input_files = _validate_task(task)
 
     started = time.monotonic()
@@ -46,6 +47,7 @@ def evaluate_task(task: dict[str, Any]) -> EvaluationResult:
             stderr=_to_text(exc.stderr),
             duration_seconds=time.monotonic() - started,
             reason=f"timeout after {timeout:g}s",
+            run_index=run_index,
         )
 
     failures: list[str] = []
@@ -65,10 +67,15 @@ def evaluate_task(task: dict[str, Any]) -> EvaluationResult:
         stderr=completed.stderr,
         duration_seconds=duration,
         reason="; ".join(failures) or None,
+        run_index=run_index,
     )
 
 
-def evaluate_file(path: Path) -> list[EvaluationResult]:
+def evaluate_file(path: Path, *, runs: int = 1, tags: list[str] | None = None) -> list[EvaluationResult]:
+    if isinstance(runs, bool) or not isinstance(runs, int) or runs <= 0:
+        raise ValueError("runs must be a positive integer")
+
+    requested_tags = _normalize_tags(tags)
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("input must be a JSON object")
@@ -77,24 +84,70 @@ def evaluate_file(path: Path) -> list[EvaluationResult]:
         raise ValueError("input must contain a 'tasks' list")
 
     seen_ids: set[str] = set()
+    validated_tasks: list[dict[str, Any]] = []
     for task in tasks:
-        if not isinstance(task, dict):
-            continue
-        task_id = task.get("id")
-        if isinstance(task_id, str) and task_id.strip():
-            if task_id in seen_ids:
-                raise ValueError(f"duplicate task id: {task_id}")
-            seen_ids.add(task_id)
+        task_id, *_ = _validate_task(task)
+        if task_id in seen_ids:
+            raise ValueError(f"duplicate task id: {task_id}")
+        seen_ids.add(task_id)
+        validated_tasks.append(task)
 
-    return [evaluate_task(task) for task in tasks]
+    if requested_tags:
+        validated_tasks = [
+            task
+            for task in validated_tasks
+            if requested_tags.intersection(task.get("tags", []))
+        ]
+
+    results: list[EvaluationResult] = []
+    for run_index in range(1, runs + 1):
+        results.extend(
+            evaluate_task(task, run_index=run_index)
+            for task in validated_tasks
+        )
+    return results
 
 
 def report(results: list[EvaluationResult]) -> dict[str, Any]:
     passed = sum(result.passed for result in results)
+    total = len(results)
+    duration = sum(result.duration_seconds for result in results)
+
+    grouped: dict[str, list[EvaluationResult]] = {}
+    for result in results:
+        grouped.setdefault(result.task_id, []).append(result)
+
+    task_summaries = []
+    for task_id, task_results in grouped.items():
+        task_passed = sum(result.passed for result in task_results)
+        task_duration = sum(result.duration_seconds for result in task_results)
+        task_summaries.append({
+            "task_id": task_id,
+            "runs": len(task_results),
+            "passed": task_passed,
+            "failed": len(task_results) - task_passed,
+            "pass_rate": task_passed / len(task_results),
+            "average_duration_seconds": task_duration / len(task_results),
+        })
+
     return {
-        "summary": {"total": len(results), "passed": passed, "failed": len(results) - passed},
+        "summary": {"total": total, "passed": passed, "failed": total - passed},
+        "metrics": {
+            "pass_rate": passed / total if total else 0.0,
+            "total_duration_seconds": duration,
+            "average_duration_seconds": duration / total if total else 0.0,
+        },
+        "tasks": task_summaries,
         "results": [asdict(result) for result in results],
     }
+
+
+def _normalize_tags(tags: list[str] | None) -> set[str]:
+    if tags is None:
+        return set()
+    if not isinstance(tags, list) or not all(isinstance(tag, str) and tag.strip() for tag in tags):
+        raise ValueError("tags must be a list of non-empty strings")
+    return {tag.strip() for tag in tags}
 
 
 def _validate_task(task: dict[str, Any]) -> tuple[str, list[str], float, int, str | None, str | None, dict[str, str], dict[str, str]]:
@@ -109,6 +162,10 @@ def _validate_task(task: dict[str, Any]) -> tuple[str, list[str], float, int, st
     command = task["command"]
     if not isinstance(command, list) or not command or not all(isinstance(x, str) and x for x in command):
         raise ValueError(f"{task_id}: command must be a non-empty list of non-empty strings")
+
+    tags = task.get("tags", [])
+    if not isinstance(tags, list) or not all(isinstance(tag, str) and tag.strip() for tag in tags):
+        raise ValueError(f"{task_id}: tags must be a list of non-empty strings")
 
     timeout_raw = task.get("timeout_seconds", 10)
     if isinstance(timeout_raw, bool) or not isinstance(timeout_raw, (int, float)) or timeout_raw <= 0:
