@@ -192,3 +192,50 @@ def test_compare_cli_writes_json_and_html(tmp_path):
     payload = json.loads(output.read_text())
     assert payload["comparison"]["report_count"] == 2
     assert "Agent Benchmark Comparison" in html_output.read_text()
+
+
+def test_cli_supports_parallel_execution_and_junit_output(tmp_path):
+    task_file = tmp_path / "tasks.json"
+    json_report = tmp_path / "result.json"
+    junit_report = tmp_path / "result.xml"
+    task_file.write_text(json.dumps({
+        "tasks": [
+            {
+                "id": "one",
+                "command": [sys.executable, "-c", "print('one')"],
+                "expected_stdout": "one\n",
+            },
+            {
+                "id": "two",
+                "command": [sys.executable, "-c", "print('two')"],
+                "expected_stdout": "two\n",
+            },
+        ]
+    }))
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "agent_eval.cli",
+            str(task_file),
+            "--runs",
+            "2",
+            "--parallel",
+            "2",
+            "--output",
+            str(json_report),
+            "--junit-output",
+            str(junit_report),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0
+    payload = json.loads(json_report.read_text())
+    assert payload["summary"] == {"total": 4, "passed": 4, "failed": 0}
+    rendered = junit_report.read_text()
+    assert 'tests="4"' in rendered
+    assert 'failures="0"' in rendered
