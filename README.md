@@ -50,6 +50,31 @@ pytest -q
 
 A successful evaluation exits with status `0`; a report containing failed tasks exits with status `1`.
 
+## Benchmark mode
+
+Repeat every selected task to measure reliability across multiple runs:
+
+```bash
+agent-eval examples/tasks.json --runs 5 --output results.json
+```
+
+Tasks can define optional tags and the CLI can filter by one or more tags. When multiple `--tag` flags are supplied, a task is selected if it matches any of them.
+
+```bash
+agent-eval examples/tasks.json --tag python --tag filesystem --runs 3
+```
+
+Generate a standalone HTML dashboard alongside the machine-readable JSON report:
+
+```bash
+agent-eval examples/tasks.json \
+  --runs 5 \
+  --output reports/results.json \
+  --html-output reports/results.html
+```
+
+Repeated runs add a `run_index` to each result and the report includes aggregate pass-rate and average-duration metrics for every task.
+
 ## Docker
 
 ```bash
@@ -64,6 +89,7 @@ docker run --rm agent-evaluation-lab
   "tasks": [
     {
       "id": "write-answer",
+      "tags": ["python", "filesystem"],
       "input_files": {
         "question.txt": "What is 6 * 7?"
       },
@@ -84,26 +110,44 @@ docker run --rm agent-evaluation-lab
 }
 ```
 
-Each task runs in a fresh temporary directory. `input_files` are materialized before the command starts, nested directories are created automatically, and paths that escape the task workspace are rejected. Checks target externally visible behavior rather than source-code structure or implementation-specific names.
+Each task runs in a fresh temporary directory. `input_files` are materialized before the command starts, nested directories are created automatically, and paths that escape the task workspace are rejected. Optional `tags` support benchmark filtering without changing task behavior. Checks target externally visible behavior rather than source-code structure or implementation-specific names.
 
 ## Report format
+
+JSON reports keep the original pass/fail summary and add benchmark-level metrics plus per-task reliability statistics:
 
 ```json
 {
   "summary": {
-    "total": 1,
-    "passed": 1,
+    "total": 3,
+    "passed": 3,
     "failed": 0
   },
+  "metrics": {
+    "pass_rate": 1.0,
+    "total_duration_seconds": 0.06,
+    "average_duration_seconds": 0.02
+  },
+  "tasks": [
+    {
+      "task_id": "write-answer",
+      "runs": 3,
+      "passed": 3,
+      "failed": 0,
+      "pass_rate": 1.0,
+      "average_duration_seconds": 0.02
+    }
+  ],
   "results": [
     {
       "task_id": "write-answer",
       "passed": true,
       "exit_code": 0,
-      "stdout": "done\n",
+      "stdout": "done\\n",
       "stderr": "",
       "duration_seconds": 0.02,
-      "reason": null
+      "reason": null,
+      "run_index": 1
     }
   ]
 }
@@ -128,10 +172,12 @@ agent-evaluation-lab/
 ├── src/agent_eval/
 │   ├── __init__.py
 │   ├── cli.py
-│   └── core.py
+│   ├── core.py
+│   └── html_report.py
 ├── tests/
 │   ├── test_cli.py
-│   └── test_core.py
+│   ├── test_core.py
+│   └── test_html_report.py
 ├── Dockerfile
 ├── pyproject.toml
 └── README.md
