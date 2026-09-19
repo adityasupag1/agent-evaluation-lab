@@ -1,0 +1,12 @@
+{
+  "name": "demo-partial",
+  "command": [
+    "python",
+    "-m",
+    "agent_eval.demo_agent",
+    "--profile",
+    "partial",
+    "--prompt",
+    "{prompt}"
+  ]
+}
