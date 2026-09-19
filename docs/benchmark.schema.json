@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adityasupag1/agent-evaluation-lab/blob/main/docs/benchmark.schema.json",
+  "title": "Agent Evaluation Lab benchmark",
+  "type": "object",
+  "required": ["tasks"],
+  "additionalProperties": false,
+  "properties": {
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "tags": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          },
+          "command": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "prompt": {"type": "string", "minLength": 1},
+          "input_files": {
+            "type": "object",
+            "additionalProperties": {"type": "string"}
+          },
+          "expected_exit_code": {"type": "integer"},
+          "expected_stdout": {"type": "string"},
+          "expected_stderr": {"type": "string"},
+          "expected_files": {
+            "type": "object",
+            "additionalProperties": {"type": "string"}
+          },
+          "timeout_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "anyOf": [
+          {"required": ["command"]},
+          {"required": ["prompt"]}
+        ]
+      }
+    }
+  }
+}
