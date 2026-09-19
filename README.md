@@ -50,6 +50,14 @@ pytest -q
 
 A successful evaluation exits with status `0`; a report containing failed tasks exits with status `1`.
 
+Validate a benchmark without executing any task:
+
+```bash
+agent-eval-validate examples/starter-benchmark.json
+```
+
+A JSON Schema for editor/tooling integration is published at [`docs/benchmark.schema.json`](docs/benchmark.schema.json).
+
 ## Benchmark mode
 
 Repeat every selected task to measure reliability across multiple runs:
@@ -152,6 +160,55 @@ agent-eval examples/tasks.json \
 
 Each task/run pair becomes a JUnit test case. Failed evaluations include the failure reason, stdout, and stderr when available.
 
+## Starter benchmark suite
+
+[`examples/starter-benchmark.json`](examples/starter-benchmark.json) contains a small deterministic suite covering stdout, stderr, exit-code contracts, input fixtures, nested output files, and tags.
+
+```bash
+agent-eval-validate examples/starter-benchmark.json
+agent-eval examples/starter-benchmark.json \
+  --runs 2 \
+  --parallel 2 \
+  --output reports/starter.json \
+  --html-output reports/starter.html \
+  --junit-output reports/starter.xml
+```
+
+This provides a known-good smoke test before authoring project-specific benchmarks.
+
+## Reusable GitHub Action
+
+The repository includes a composite action, so another repository can run a benchmark directly in CI:
+
+```yaml
+name: Agent benchmark
+
+on:
+  pull_request:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: adityasupag1/agent-evaluation-lab@main
+        with:
+          task-file: benchmarks/tasks.json
+          runs: "3"
+          parallel: "2"
+          label: ci-benchmark
+```
+
+By default the action writes:
+
+```text
+agent-eval-results/results.json
+agent-eval-results/results.html
+agent-eval-results/results.xml
+```
+
+It validates the benchmark before execution and supports optional `agent-config`, custom report paths, and a selectable Python version. For reproducible production workflows, pin the action to a commit SHA or a release tag instead of `main`.
+
 ## Docker
 
 ```bash
@@ -245,6 +302,9 @@ JSON reports keep the original pass/fail summary and add benchmark-level metrics
 ```text
 agent-evaluation-lab/
 ├── .github/workflows/ci.yml
+├── action.yml
+├── docs/benchmark.schema.json
+├── examples/starter-benchmark.json
 ├── examples/tasks.json
 ├── src/agent_eval/
 │   ├── __init__.py
@@ -261,7 +321,8 @@ agent-evaluation-lab/
 │   ├── test_comparison.py
 │   ├── test_core.py
 │   ├── test_html_report.py
-│   └── test_junit_report.py
+│   ├── test_junit_report.py
+│   └── test_validation.py
 ├── Dockerfile
 ├── pyproject.toml
 └── README.md
