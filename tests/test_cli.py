@@ -239,3 +239,44 @@ def test_cli_supports_parallel_execution_and_junit_output(tmp_path):
     rendered = junit_report.read_text()
     assert 'tests="4"' in rendered
     assert 'failures="0"' in rendered
+
+
+def test_validate_cli_writes_metadata_without_executing_tasks(tmp_path):
+    task_file = tmp_path / "tasks.json"
+    validation_file = tmp_path / "validation.json"
+    marker = tmp_path / "should-not-exist.txt"
+    task_file.write_text(json.dumps({
+        "tasks": [
+            {
+                "id": "validate-only",
+                "command": [
+                    sys.executable,
+                    "-c",
+                    f"from pathlib import Path; Path({str(marker)!r}).write_text('executed')"
+                ],
+            }
+        ]
+    }))
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "agent_eval.validate_cli",
+            str(task_file),
+            "--output",
+            str(validation_file),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0
+    assert not marker.exists()
+    payload = json.loads(validation_file.read_text())
+    assert payload == {
+        "valid": True,
+        "task_count": 1,
+        "task_ids": ["validate-only"],
+    }
