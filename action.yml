@@ -1,0 +1,86 @@
+name: Agent Evaluation Lab
+description: Validate and run deterministic agent benchmarks with JSON, HTML, and JUnit reports.
+author: Aditya Raj
+
+inputs:
+  task-file:
+    description: Path to the benchmark JSON file in the calling repository.
+    required: true
+  python-version:
+    description: Python version used to install and run Agent Evaluation Lab.
+    required: false
+    default: "3.12"
+  runs:
+    description: Number of times to repeat each benchmark task.
+    required: false
+    default: "1"
+  parallel:
+    description: Maximum number of task executions to run concurrently.
+    required: false
+    default: "1"
+  agent-config:
+    description: Optional path to an agent adapter JSON file in the calling repository.
+    required: false
+    default: ""
+  label:
+    description: Optional benchmark label stored in the JSON report.
+    required: false
+    default: ""
+  json-report:
+    description: JSON report output path.
+    required: false
+    default: "agent-eval-results/results.json"
+  html-report:
+    description: HTML report output path.
+    required: false
+    default: "agent-eval-results/results.html"
+  junit-report:
+    description: JUnit XML report output path.
+    required: false
+    default: "agent-eval-results/results.xml"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install Agent Evaluation Lab
+      shell: bash
+      run: python -m pip install "${{ github.action_path }}"
+
+    - name: Validate benchmark
+      shell: bash
+      env:
+        TASK_FILE: ${{ inputs.task-file }}
+      run: agent-eval-validate "$TASK_FILE"
+
+    - name: Run benchmark
+      shell: bash
+      env:
+        TASK_FILE: ${{ inputs.task-file }}
+        RUNS: ${{ inputs.runs }}
+        PARALLEL: ${{ inputs.parallel }}
+        AGENT_CONFIG: ${{ inputs.agent-config }}
+        LABEL: ${{ inputs.label }}
+        JSON_REPORT: ${{ inputs.json-report }}
+        HTML_REPORT: ${{ inputs.html-report }}
+        JUNIT_REPORT: ${{ inputs.junit-report }}
+      run: |
+        args=(
+          "$TASK_FILE"
+          --runs "$RUNS"
+          --parallel "$PARALLEL"
+          --output "$JSON_REPORT"
+          --html-output "$HTML_REPORT"
+          --junit-output "$JUNIT_REPORT"
+        )
+        if [[ -n "$AGENT_CONFIG" ]]; then
+          args+=(--agent-config "$AGENT_CONFIG")
+        fi
+        if [[ -n "$LABEL" ]]; then
+          args+=(--label "$LABEL")
+        fi
+        agent-eval "${args[@]}"

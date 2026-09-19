@@ -1,0 +1,70 @@
+{
+  "tasks": [
+    {
+      "id": "stdout-arithmetic",
+      "tags": ["python", "stdout", "smoke"],
+      "command": ["python", "-c", "print(6 * 7)"],
+      "expected_exit_code": 0,
+      "expected_stdout": "42\n",
+      "expected_stderr": "",
+      "timeout_seconds": 5
+    },
+    {
+      "id": "fixture-transform",
+      "tags": ["python", "filesystem"],
+      "input_files": {
+        "data/input.txt": "agent evaluation"
+      },
+      "command": [
+        "python",
+        "-c",
+        "from pathlib import Path; source = Path('data/input.txt').read_text(); Path('artifacts/output.txt').parent.mkdir(parents=True, exist_ok=True); Path('artifacts/output.txt').write_text(source.upper()); print('processed')"
+      ],
+      "expected_exit_code": 0,
+      "expected_stdout": "processed\n",
+      "expected_stderr": "",
+      "expected_files": {
+        "artifacts/output.txt": "AGENT EVALUATION"
+      },
+      "timeout_seconds": 5
+    },
+    {
+      "id": "stderr-contract",
+      "tags": ["python", "stderr"],
+      "command": [
+        "python",
+        "-c",
+        "import sys; print('diagnostic', file=sys.stderr)"
+      ],
+      "expected_exit_code": 0,
+      "expected_stdout": "",
+      "expected_stderr": "diagnostic\n",
+      "timeout_seconds": 5
+    },
+    {
+      "id": "expected-nonzero-exit",
+      "tags": ["python", "exit-code"],
+      "command": ["python", "-c", "raise SystemExit(3)"],
+      "expected_exit_code": 3,
+      "expected_stdout": "",
+      "expected_stderr": "",
+      "timeout_seconds": 5
+    },
+    {
+      "id": "nested-artifact",
+      "tags": ["python", "filesystem", "smoke"],
+      "command": [
+        "python",
+        "-c",
+        "from pathlib import Path; target = Path('reports/nested/result.txt'); target.parent.mkdir(parents=True, exist_ok=True); target.write_text('ready')"
+      ],
+      "expected_exit_code": 0,
+      "expected_stdout": "",
+      "expected_stderr": "",
+      "expected_files": {
+        "reports/nested/result.txt": "ready"
+      },
+      "timeout_seconds": 5
+    }
+  ]
+}

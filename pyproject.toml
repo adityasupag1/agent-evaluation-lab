@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-evaluation-lab"
-version = "0.4.0"
+version = "0.5.0"
 description = "Deterministic benchmark harness for command-line coding agents"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -18,6 +18,7 @@ dev = ["pytest>=8.0"]
 [project.scripts]
 agent-eval = "agent_eval.cli:main"
 agent-eval-compare = "agent_eval.compare_cli:main"
+agent-eval-validate = "agent_eval.validate_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
