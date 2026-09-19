@@ -348,6 +348,10 @@ agent-evaluation-lab/
 └── README.md
 ```
 
+## Release notes
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and [the v0.6.0 release notes](docs/releases/v0.6.0.md) for the first public release overview.
+
 ## Development
 
 ```bash
